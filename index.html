@@ -262,6 +262,16 @@
     text-decoration: line-through;
     color: var(--text-dim);
   }
+  .edit-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 15px;
+    cursor: pointer;
+    padding: 4px 6px;
+    line-height: 1;
+  }
+  .edit-btn:active { color: var(--accent); }
   .delete-btn {
     background: none;
     border: none;
@@ -336,6 +346,36 @@
     gap: 8px;
   }
   .modal-cat-btn:active { background: var(--border); }
+  .modal-cat-btn.selected {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+  .modal-input {
+    width: 100%;
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 16px;
+    outline: none;
+    margin-bottom: 16px;
+  }
+  .modal-input:focus { border-color: var(--accent); }
+  .modal-save-btn {
+    width: 100%;
+    margin-top: 16px;
+    background: var(--accent);
+    color: #0f1115;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .modal-save-btn:active { transform: scale(0.98); }
 </style>
 </head>
 <body>
@@ -372,6 +412,16 @@
     <div class="modal-title" id="modalTitle">¿En qué categoría va?</div>
     <div class="modal-subtitle">No reconocí este item, elegí la sección</div>
     <div class="modal-grid" id="modalGrid"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModalOverlay">
+  <div class="modal">
+    <div class="modal-title">Editar item</div>
+    <input type="text" id="editItemInput" class="modal-input" autocomplete="off" autocorrect="off">
+    <div class="modal-subtitle">Categoría</div>
+    <div class="modal-grid" id="editModalGrid"></div>
+    <button class="modal-save-btn" id="editSaveBtn" type="button">Guardar cambios</button>
   </div>
 </div>
 
@@ -545,6 +595,8 @@
   let pendingText = null; // texto esperando que el usuario elija categoría
   let highlightedIndex = -1;
   let currentSuggestions = [];
+  let editingId = null; // id del item que se está editando
+  let editingCategory = null; // categoría elegida en el modal de edición
 
   function load() {
     try {
@@ -638,6 +690,13 @@
         text.dataset.action = 'toggle-item';
         text.dataset.id = item.id;
 
+        const editBtn = document.createElement('button');
+        editBtn.className = 'edit-btn';
+        editBtn.textContent = '✏️';
+        editBtn.type = 'button';
+        editBtn.dataset.action = 'edit-item';
+        editBtn.dataset.id = item.id;
+
         const delBtn = document.createElement('button');
         delBtn.className = 'delete-btn';
         delBtn.textContent = '✕';
@@ -647,6 +706,7 @@
 
         li.appendChild(checkbox);
         li.appendChild(text);
+        li.appendChild(editBtn);
         li.appendChild(delBtn);
         ul.appendChild(li);
       });
@@ -731,6 +791,67 @@
 
   document.getElementById('modalOverlay').addEventListener('click', (e) => {
     if (e.target.id === 'modalOverlay') closeModal();
+  });
+
+  // ---- Modal para editar item existente (nombre + categoría) ----
+  function openEditModal(id) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    editingId = id;
+    editingCategory = item.category || 'otros';
+    const input = document.getElementById('editItemInput');
+    input.value = item.text;
+    renderEditGrid();
+    document.getElementById('editModalOverlay').classList.add('show');
+    setTimeout(() => input.focus(), 50);
+  }
+
+  function renderEditGrid() {
+    const grid = document.getElementById('editModalGrid');
+    grid.innerHTML = '';
+    CATEGORIES.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'modal-cat-btn' + (cat.id === editingCategory ? ' selected' : '');
+      btn.type = 'button';
+      btn.dataset.action = 'select-edit-category';
+      btn.dataset.catId = cat.id;
+      btn.innerHTML = `<span>${cat.icon}</span><span>${cat.name}</span>`;
+      grid.appendChild(btn);
+    });
+  }
+
+  function closeEditModal() {
+    document.getElementById('editModalOverlay').classList.remove('show');
+    editingId = null;
+    editingCategory = null;
+  }
+
+  function saveEdit() {
+    if (!editingId) return;
+    const item = items.find(i => i.id === editingId);
+    if (!item) return;
+    const newText = document.getElementById('editItemInput').value.trim();
+    if (!newText) return;
+    item.text = newText;
+    item.category = editingCategory;
+    save();
+    render();
+    closeEditModal();
+  }
+
+  document.getElementById('editModalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'editModalOverlay') closeEditModal();
+  });
+
+  document.getElementById('editSaveBtn').addEventListener('click', saveEdit);
+
+  document.getElementById('editItemInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      closeEditModal();
+    }
   });
 
   // ---- Autocompletado ----
@@ -865,14 +986,20 @@
       toggleItem(target.dataset.id);
     } else if (action === 'delete-item') {
       deleteItem(target.dataset.id);
+    } else if (action === 'edit-item') {
+      openEditModal(target.dataset.id);
     } else if (action === 'pick-category') {
       addItemWithCategory(pendingText, target.dataset.catId);
       closeModal();
+    } else if (action === 'select-edit-category') {
+      editingCategory = target.dataset.catId;
+      renderEditGrid();
     }
   }
 
   document.getElementById('main').addEventListener('click', handleDelegatedClick);
   document.getElementById('modalGrid').addEventListener('click', handleDelegatedClick);
+  document.getElementById('editModalGrid').addEventListener('click', handleDelegatedClick);
 
   // Refuerzo táctil: algunos WebViews de Android disparan click con demora
   // o lo pierden en scroll rápido. touchend + click combinados sin duplicar.
