@@ -7,24 +7,92 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#0f1115">
+<meta name="theme-color" content="#1e1e2e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Lista Super">
 <meta name="mobile-web-app-capable" content="yes">
+<script>
+  // Aplicar el tema antes de pintar para evitar el flash de color equivocado.
+  (function() {
+    try {
+      var t = localStorage.getItem('lista_super_theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  })();
+</script>
 <style>
   :root {
-    --bg: #0f1115;
-    --card: #1a1d24;
-    --card-2: #21252e;
-    --accent: #4ade80;
-    --accent-dim: #2a5c3f;
-    --text: #e8e9ed;
-    --text-dim: #8a8f9c;
-    --danger: #f87171;
-    --border: #2a2e38;
+    /* Catppuccin Mocha (tema oscuro, por defecto) */
+    --ctp-rosewater: #f5e0dc;
+    --ctp-flamingo: #f2cdcd;
+    --ctp-pink: #f5c2e7;
+    --ctp-mauve: #cba6f7;
+    --ctp-red: #f38ba8;
+    --ctp-maroon: #eba0ac;
+    --ctp-peach: #fab387;
+    --ctp-yellow: #f9e2af;
+    --ctp-green: #a6e3a1;
+    --ctp-teal: #94e2d5;
+    --ctp-sky: #89dceb;
+    --ctp-sapphire: #74c7ec;
+    --ctp-blue: #89b4fa;
+    --ctp-lavender: #b4befe;
+
+    --bg: #1e1e2e;
+    --bg-solid: #1e1e2e;
+    --card: #313244;
+    --card-2: #45475a;
+    --border: #45475a;
+    --text: #cdd6f4;
+    --text-dim: #a6adc8;
+    --accent: var(--ctp-green);
+    --accent-2: var(--ctp-teal);
+    --accent-dim: rgba(166,227,161,0.18);
+    --danger: var(--ctp-red);
+    --on-accent: #1e1e2e;
+    --glow-1: rgba(203,166,247,0.20);
+    --glow-2: rgba(137,180,250,0.16);
+    --glow-3: rgba(148,226,213,0.14);
+    --shadow: 0 8px 24px rgba(0,0,0,0.35);
   }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: rgba(74,222,128,0.15); }
+
+  :root[data-theme="light"] {
+    /* Catppuccin Latte (tema claro) */
+    --ctp-rosewater: #dc8a78;
+    --ctp-flamingo: #dd7878;
+    --ctp-pink: #ea76cb;
+    --ctp-mauve: #8839ef;
+    --ctp-red: #d20f39;
+    --ctp-maroon: #e64553;
+    --ctp-peach: #fe640b;
+    --ctp-yellow: #df8e1d;
+    --ctp-green: #40a02b;
+    --ctp-teal: #179299;
+    --ctp-sky: #04a5e5;
+    --ctp-sapphire: #209fb5;
+    --ctp-blue: #1e66f5;
+    --ctp-lavender: #7287fd;
+
+    --bg: #eff1f5;
+    --bg-solid: #eff1f5;
+    --card: #ffffff;
+    --card-2: #e6e9ef;
+    --border: #ccd0da;
+    --text: #4c4f69;
+    --text-dim: #6c6f85;
+    --accent: var(--ctp-green);
+    --accent-2: var(--ctp-teal);
+    --accent-dim: rgba(64,160,43,0.14);
+    --danger: var(--ctp-red);
+    --on-accent: #ffffff;
+    --glow-1: rgba(136,57,239,0.10);
+    --glow-2: rgba(30,102,245,0.09);
+    --glow-3: rgba(23,146,153,0.09);
+    --shadow: 0 8px 24px rgba(76,79,105,0.12);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: rgba(166,227,161,0.2); }
   button, .checkbox, .item-text, .category-header, .toggle-btn, .clear-btn, .suggestion-item, .modal-cat-btn {
     touch-action: manipulation;
     user-select: none;
@@ -32,11 +100,23 @@
   }
   html, body {
     margin: 0; padding: 0;
-    background: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     height: 100%;
     overscroll-behavior-y: contain;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+  html {
+    background: var(--bg-solid);
+  }
+  body {
+    background:
+      radial-gradient(circle at 12% 0%, var(--glow-1), transparent 42%),
+      radial-gradient(circle at 88% 8%, var(--glow-2), transparent 46%),
+      radial-gradient(circle at 50% 100%, var(--glow-3), transparent 55%),
+      var(--bg-solid);
+    background-attachment: fixed;
+    min-height: 100%;
   }
   .app {
     max-width: 520px;
@@ -50,17 +130,46 @@
     padding: 20px 16px 12px 16px;
     position: sticky;
     top: 0;
-    background: var(--bg);
+    background: linear-gradient(180deg, var(--bg-solid) 82%, transparent 100%);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     z-index: 20;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
   }
   h1 {
     margin: 0 0 4px 0;
     font-size: 22px;
-    font-weight: 700;
+    font-weight: 800;
     display: flex;
     align-items: center;
     gap: 8px;
+    background: linear-gradient(90deg, var(--ctp-mauve), var(--ctp-blue) 55%, var(--ctp-teal));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    width: fit-content;
   }
+  .theme-toggle {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 12px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow);
+  }
+  .theme-toggle:active { transform: scale(0.92); }
   .subtitle {
     color: var(--text-dim);
     font-size: 13px;
@@ -81,13 +190,15 @@
     font-size: 16px;
     outline: none;
     width: 100%;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
   #newItem:focus {
-    border-color: var(--accent);
+    border-color: var(--ctp-mauve);
+    box-shadow: 0 0 0 3px var(--accent-dim);
   }
   #addBtn {
-    background: var(--accent);
-    color: #0f1115;
+    background: linear-gradient(135deg, var(--ctp-green), var(--ctp-teal));
+    color: var(--on-accent);
     border: none;
     border-radius: 12px;
     width: 52px;
@@ -99,6 +210,8 @@
     align-items: center;
     justify-content: center;
     line-height: 1;
+    box-shadow: var(--shadow);
+    transition: transform 0.15s ease;
   }
   #addBtn:active { transform: scale(0.95); }
 
@@ -134,8 +247,8 @@
   }
   .suggestion-cat {
     font-size: 11px;
-    color: var(--text-dim);
-    background: var(--bg);
+    color: var(--cat-color, var(--text-dim));
+    background: color-mix(in srgb, var(--cat-color, var(--border)) 16%, var(--bg));
     padding: 3px 8px;
     border-radius: 6px;
     white-space: nowrap;
@@ -162,10 +275,12 @@
     align-items: center;
     gap: 6px;
     white-space: nowrap;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   }
   .toggle-btn.active {
     color: var(--accent);
-    border-color: var(--accent-dim);
+    border-color: transparent;
+    background: var(--accent-dim);
   }
   .clear-btn {
     background: none;
@@ -176,6 +291,7 @@
     padding: 8px;
     white-space: nowrap;
   }
+  .clear-btn:active { opacity: 0.7; }
 
   main {
     flex: 1;
@@ -190,11 +306,20 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 4px;
+    padding: 8px 4px 8px 10px;
+    border-left: 3px solid var(--cat-color, var(--border));
+    border-radius: 8px;
     cursor: pointer;
     user-select: none;
   }
-  .category-icon { font-size: 17px; }
+  .category-icon {
+    font-size: 15px;
+    background: var(--cat-color, var(--card));
+    background: color-mix(in srgb, var(--cat-color, var(--border)) 20%, transparent);
+    border-radius: 8px;
+    padding: 5px 7px;
+    line-height: 1;
+  }
   .category-name {
     font-size: 14px;
     font-weight: 700;
@@ -205,8 +330,10 @@
   }
   .category-count {
     font-size: 12px;
-    color: var(--text-dim);
+    color: var(--cat-color, var(--text-dim));
     background: var(--card);
+    background: color-mix(in srgb, var(--cat-color, var(--border)) 14%, var(--card));
+    border: 1px solid color-mix(in srgb, var(--cat-color, var(--border)) 40%, transparent);
     padding: 2px 8px;
     border-radius: 20px;
   }
@@ -222,17 +349,31 @@
   li {
     background: var(--card);
     border: 1px solid var(--border);
+    border-left: 3px solid var(--cat-color, var(--border));
     border-radius: 12px;
     padding: 14px 14px;
     margin-bottom: 8px;
     display: flex;
     align-items: center;
     gap: 12px;
-    transition: opacity 0.2s ease, transform 0.15s ease;
+    max-height: 200px;
+    overflow: hidden;
+    transition: opacity 0.28s ease, transform 0.28s ease, max-height 0.32s ease,
+      padding 0.32s ease, margin-bottom 0.32s ease, border-width 0.32s ease,
+      background-color 0.2s ease;
   }
   li.checked {
     background: var(--card-2);
     opacity: 0.55;
+  }
+  li.removing {
+    opacity: 0;
+    transform: scale(0.94);
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-width: 0;
   }
   .checkbox {
     width: 24px;
@@ -246,11 +387,13 @@
     cursor: pointer;
     font-size: 15px;
     color: transparent;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
   }
   li.checked .checkbox {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #0f1115;
+    background: linear-gradient(135deg, var(--ctp-green), var(--ctp-teal));
+    border-color: transparent;
+    color: var(--on-accent);
+    transform: scale(1.05);
   }
   .item-text {
     flex: 1;
@@ -302,7 +445,9 @@
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.6);
+    background: rgba(17,17,27,0.6);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
     display: none;
     align-items: flex-end;
     justify-content: center;
@@ -311,12 +456,15 @@
   .modal-overlay.show { display: flex; }
   .modal {
     background: var(--card);
+    border: 1px solid var(--border);
+    border-bottom: none;
     border-radius: 20px 20px 0 0;
     width: 100%;
     max-width: 520px;
     max-height: 70vh;
     overflow-y: auto;
     padding: 20px 16px calc(20px + env(safe-area-inset-bottom)) 16px;
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.25);
   }
   .modal-title {
     font-size: 16px;
@@ -344,12 +492,13 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   }
   .modal-cat-btn:active { background: var(--border); }
   .modal-cat-btn.selected {
-    border-color: var(--accent);
-    background: var(--accent-dim);
-    color: var(--accent);
+    border-color: var(--cat-color, var(--accent));
+    background: color-mix(in srgb, var(--cat-color, var(--accent)) 18%, var(--card-2));
+    color: var(--cat-color, var(--accent));
   }
   .modal-input {
     width: 100%;
@@ -361,19 +510,24 @@
     font-size: 16px;
     outline: none;
     margin-bottom: 16px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-  .modal-input:focus { border-color: var(--accent); }
+  .modal-input:focus {
+    border-color: var(--ctp-mauve);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
   .modal-save-btn {
     width: 100%;
     margin-top: 16px;
-    background: var(--accent);
-    color: #0f1115;
+    background: linear-gradient(135deg, var(--ctp-green), var(--ctp-teal));
+    color: var(--on-accent);
     border: none;
     border-radius: 12px;
     padding: 14px;
     font-size: 15px;
     font-weight: 700;
     cursor: pointer;
+    box-shadow: var(--shadow);
   }
   .modal-save-btn:active { transform: scale(0.98); }
 </style>
@@ -381,7 +535,10 @@
 <body>
 <div class="app">
   <header>
-    <h1>🛒 Lista del Super</h1>
+    <div class="header-top">
+      <h1>🛒 Lista del Super</h1>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Cambiar tema"></button>
+    </div>
     <div class="subtitle" id="counter">0 items</div>
     <div class="add-row">
       <input type="text" id="newItem" placeholder="Agregar item... (ej: leche, pollo)" autocomplete="off" autocorrect="off">
@@ -430,26 +587,49 @@
   const STORAGE_KEY = 'lista_super_items';
   const SHOW_CHECKED_KEY = 'lista_super_show_checked';
   const COLLAPSED_KEY = 'lista_super_collapsed';
+  const THEME_KEY = 'lista_super_theme';
+
+  // ---- Tema claro/oscuro ----
+  let theme = document.documentElement.getAttribute('data-theme') || 'dark';
+
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', theme);
+    const btn = document.getElementById('themeToggle');
+    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#1e1e2e' : '#eff1f5');
+  }
+
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(THEME_KEY, theme);
+    applyTheme();
+  });
 
   // ---- Categorías ----
+  // color: nombre de variable --ctp-<color> (paleta Catppuccin) para identidad visual
   const CATEGORIES = [
-    { id: 'frutas_verduras', name: 'Frutas y Verduras', icon: '🥬' },
-    { id: 'carnes',          name: 'Carnes y Fiambres',  icon: '🥩' },
-    { id: 'pescados',        name: 'Pescados y Mariscos', icon: '🐟' },
-    { id: 'lacteos',         name: 'Lácteos y Huevos',   icon: '🥛' },
-    { id: 'panaderia',       name: 'Panadería',          icon: '🍞' },
-    { id: 'almacen',         name: 'Almacén',            icon: '🥫' },
-    { id: 'condimentos',     name: 'Condimentos y Salsas', icon: '🧂' },
-    { id: 'bebidas',         name: 'Bebidas',            icon: '🥤' },
-    { id: 'congelados',      name: 'Congelados',         icon: '🧊' },
-    { id: 'snacks',          name: 'Snacks y Dulces',    icon: '🍪' },
-    { id: 'limpieza',        name: 'Limpieza',           icon: '🧽' },
-    { id: 'higiene',         name: 'Higiene y Perfumería', icon: '🧴' },
-    { id: 'bebes',           name: 'Bebés',              icon: '🍼' },
-    { id: 'mascotas',        name: 'Mascotas',           icon: '🐾' },
-    { id: 'otros',           name: 'Otros',              icon: '🛍️' },
+    { id: 'frutas_verduras', name: 'Frutas y Verduras', icon: '🥬', color: 'green' },
+    { id: 'carnes',          name: 'Carnes y Fiambres',  icon: '🥩', color: 'red' },
+    { id: 'pescados',        name: 'Pescados y Mariscos', icon: '🐟', color: 'sapphire' },
+    { id: 'lacteos',         name: 'Lácteos y Huevos',   icon: '🥛', color: 'yellow' },
+    { id: 'panaderia',       name: 'Panadería',          icon: '🍞', color: 'peach' },
+    { id: 'almacen',         name: 'Almacén',            icon: '🥫', color: 'mauve' },
+    { id: 'condimentos',     name: 'Condimentos y Salsas', icon: '🧂', color: 'maroon' },
+    { id: 'bebidas',         name: 'Bebidas',            icon: '🥤', color: 'blue' },
+    { id: 'congelados',      name: 'Congelados',         icon: '🧊', color: 'sky' },
+    { id: 'snacks',          name: 'Snacks y Dulces',    icon: '🍪', color: 'pink' },
+    { id: 'limpieza',        name: 'Limpieza',           icon: '🧽', color: 'teal' },
+    { id: 'higiene',         name: 'Higiene y Perfumería', icon: '🧴', color: 'rosewater' },
+    { id: 'bebes',           name: 'Bebés',              icon: '🍼', color: 'flamingo' },
+    { id: 'mascotas',        name: 'Mascotas',           icon: '🐾', color: 'lavender' },
+    { id: 'otros',           name: 'Otros',              icon: '🛍️', color: null },
   ];
   const catById = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
+
+  function catColorVar(cat) {
+    return cat && cat.color ? `var(--ctp-${cat.color})` : 'var(--text-dim)';
+  }
 
   // ---- Diccionario producto -> categoría ----
   const PRODUCT_MAP = {
@@ -660,6 +840,7 @@
       const section = document.createElement('div');
       section.className = 'category-section' + (collapsed[cat.id] ? ' collapsed' : '');
       section.dataset.catId = cat.id;
+      section.style.setProperty('--cat-color', catColorVar(cat));
 
       const header = document.createElement('div');
       header.className = 'category-header';
@@ -741,16 +922,41 @@
     }
   }
 
+  const REMOVE_ANIM_MS = 320;
+
   function toggleItem(id) {
     const item = items.find(i => i.id === id);
-    if (item) {
-      item.checked = !item.checked;
-      save();
-      render();
+    if (!item) return;
+    item.checked = !item.checked;
+    save();
+
+    // Si al tacharlo va a desaparecer de la vista (porque "ocultar tachados"
+    // está activo), dejamos que la animación de salida se vea antes de
+    // reconstruir la lista, en vez de que el item desaparezca de golpe.
+    const willHide = item.checked && !showChecked;
+    if (willHide) {
+      const li = document.querySelector(`li[data-id="${CSS.escape(id)}"]`);
+      if (li) {
+        li.classList.add('checked');
+        requestAnimationFrame(() => li.classList.add('removing'));
+        setTimeout(render, REMOVE_ANIM_MS);
+        return;
+      }
     }
+    render();
   }
 
   function deleteItem(id) {
+    const li = document.querySelector(`li[data-id="${CSS.escape(id)}"]`);
+    if (li) {
+      li.classList.add('removing');
+      setTimeout(() => {
+        items = items.filter(i => i.id !== id);
+        save();
+        render();
+      }, REMOVE_ANIM_MS);
+      return;
+    }
     items = items.filter(i => i.id !== id);
     save();
     render();
@@ -778,6 +984,7 @@
       btn.type = 'button';
       btn.dataset.action = 'pick-category';
       btn.dataset.catId = cat.id;
+      btn.style.setProperty('--cat-color', catColorVar(cat));
       btn.innerHTML = `<span>${cat.icon}</span><span>${cat.name}</span>`;
       grid.appendChild(btn);
     });
@@ -815,6 +1022,7 @@
       btn.type = 'button';
       btn.dataset.action = 'select-edit-category';
       btn.dataset.catId = cat.id;
+      btn.style.setProperty('--cat-color', catColorVar(cat));
       btn.innerHTML = `<span>${cat.icon}</span><span>${cat.name}</span>`;
       grid.appendChild(btn);
     });
@@ -886,7 +1094,7 @@
       const label = p.charAt(0).toUpperCase() + p.slice(1);
       return `<div class="suggestion-item" data-idx="${idx}">
         <span>${label}</span>
-        <span class="suggestion-cat">${cat.icon} ${cat.name}</span>
+        <span class="suggestion-cat" style="--cat-color:${catColorVar(cat)}">${cat.icon} ${cat.name}</span>
       </div>`;
     }).join('');
     box.classList.add('show');
@@ -1010,6 +1218,7 @@
   document.getElementById('main').addEventListener('touchend', handleDelegatedTouch, { passive: true });
 
   // Init
+  applyTheme();
   load();
   render();
 })();
