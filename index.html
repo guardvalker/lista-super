@@ -803,7 +803,7 @@
   </header>
 
   <div class="controls">
-    <button class="toggle-btn active" id="toggleChecked">
+    <button class="toggle-btn" id="toggleChecked">
       <span id="toggleIcon">👁️</span> <span id="toggleLabel">Ocultar tachados</span>
     </button>
     <button class="clear-btn" id="clearChecked">Borrar tachados</button>
@@ -897,7 +897,7 @@
   const THEME_KEY = 'lista_super_theme';
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '1.3.0';
+  const APP_VERSION = '1.3.1';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -908,6 +908,9 @@
     ],
     '1.3.0': [
       'El título "Lista del Super" ahora es un botón: muestra la versión instalada, el historial de cambios y deja forzar una actualización si el celular se quedó con una versión vieja.'
+    ],
+    '1.3.1': [
+      'Arreglamos el botón "Ocultar tachados": antes quedaba siempre verde; ahora está gris por defecto y se pone verde solo cuando lo activás.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1257,7 +1260,7 @@
 
     const toggleBtn = document.getElementById('toggleChecked');
     const toggleLabel = document.getElementById('toggleLabel');
-    toggleBtn.className = 'toggle-btn' + (showChecked ? ' active' : '');
+    toggleBtn.className = 'toggle-btn' + (showChecked ? '' : ' active');
     toggleLabel.textContent = showChecked ? 'Ocultar tachados' : 'Mostrar tachados';
   }
 
