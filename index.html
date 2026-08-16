@@ -184,7 +184,7 @@
     gap: 8px;
     position: relative;
   }
-  #newItem {
+  .text-input {
     flex: 1;
     background: var(--card);
     border: 1px solid var(--border);
@@ -192,15 +192,16 @@
     padding: 14px 16px;
     border-radius: 12px;
     font-size: 16px;
+    font-family: inherit;
     outline: none;
     width: 100%;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-  #newItem:focus {
+  .text-input:focus {
     border-color: var(--ctp-mauve);
     box-shadow: 0 0 0 3px var(--accent-dim);
   }
-  #addBtn {
+  .add-icon-btn {
     background: linear-gradient(135deg, var(--ctp-green), var(--ctp-teal));
     color: var(--on-accent);
     border: none;
@@ -209,6 +210,7 @@
     min-width: 52px;
     font-size: 24px;
     font-weight: 700;
+    font-family: inherit;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -217,7 +219,7 @@
     box-shadow: var(--shadow);
     transition: transform 0.15s ease;
   }
-  #addBtn:active { transform: scale(0.95); }
+  .add-icon-btn:active { transform: scale(0.95); }
 
   /* Autocomplete dropdown */
   .suggestions {
@@ -810,8 +812,8 @@
     </div>
     <div class="subtitle" id="counter">0 items</div>
     <div class="add-row">
-      <input type="text" id="newItem" placeholder="Agregar item... (ej: leche, pollo)" autocomplete="off" autocorrect="off">
-      <button id="addBtn">+</button>
+      <input type="text" id="newItem" class="text-input" placeholder="Agregar item... (ej: leche, pollo)" autocomplete="off" autocorrect="off">
+      <button id="addBtn" class="add-icon-btn" type="button">+</button>
       <div class="suggestions" id="suggestions"></div>
     </div>
   </header>
@@ -888,8 +890,8 @@
     <input type="text" id="recipeNameInput" class="modal-input" placeholder="Nombre de la receta (ej: Milanesas con puré)" autocomplete="off" autocorrect="off">
     <div class="modal-subtitle">Ingredientes</div>
     <div class="add-row" id="recipeIngRow">
-      <input type="text" id="recipeIngInput" placeholder="Agregar ingrediente..." autocomplete="off" autocorrect="off">
-      <button id="recipeIngAddBtn" type="button">+</button>
+      <input type="text" id="recipeIngInput" class="text-input" placeholder="Agregar ingrediente..." autocomplete="off" autocorrect="off">
+      <button id="recipeIngAddBtn" class="add-icon-btn" type="button">+</button>
       <div class="suggestions" id="recipeIngSuggestions"></div>
     </div>
     <div id="recipeIngList" class="ingredient-list"></div>
