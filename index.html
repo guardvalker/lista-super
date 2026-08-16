@@ -409,6 +409,17 @@
     text-decoration: line-through;
     color: var(--text-dim);
   }
+  .item-multiplier {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 1px 7px;
+    border-radius: 20px;
+    vertical-align: middle;
+  }
   .edit-btn {
     background: none;
     border: none;
@@ -546,7 +557,10 @@
     margin-bottom: 4px;
   }
   #versionRefreshBtn:disabled { opacity: 0.6; }
-  #newRecipeBtn { margin: 0 0 14px 0; }
+  #newRecipeBtn { margin: 0 0 10px 0; }
+  .picker-actions { display: flex; gap: 8px; margin-bottom: 14px; }
+  .picker-actions .toggle-btn { flex: 1; justify-content: center; }
+  .hidden-file-input { display: none; }
   #recipeIngRow { margin-bottom: 12px; }
 
   /* ---- Menú semanal: pantalla completa con el calendario de 2 semanas ---- */
@@ -859,6 +873,11 @@
   <div class="modal">
     <div class="modal-title" id="recipePickerTitle">Mis Recetas</div>
     <button class="modal-save-btn" id="newRecipeBtn" type="button">+ Nueva receta</button>
+    <div class="picker-actions">
+      <button class="toggle-btn" id="exportRecipesBtn" type="button">⬇️ Exportar</button>
+      <button class="toggle-btn" id="importRecipesBtn" type="button">⬆️ Importar</button>
+      <input type="file" id="importRecipesFile" accept="application/json" class="hidden-file-input">
+    </div>
     <div id="recipePickerList"></div>
   </div>
 </div>
@@ -897,7 +916,7 @@
   const THEME_KEY = 'lista_super_theme';
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '1.3.2';
+  const APP_VERSION = '1.4.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -914,6 +933,10 @@
     ],
     '1.3.2': [
       'El botón "Buscar actualización" ahora borra la caché vieja y desregistra el service worker antes de recargar, así siempre trae la versión más nueva aunque antes se hubiera quedado pegado.'
+    ],
+    '1.4.0': [
+      'Al desactivar una receta, sus ingredientes ahora se sacan de la lista de compras. Si 2 o más recetas activas comparten un ingrediente, aparece un contador (ej: "Papas x2") y solo se resta uno por vez, así no desaparece de golpe si otra receta todavía lo necesita.',
+      'Nuevo exportar / importar recetas (en "📖 Mis Recetas"): al importar se suman a las que ya tenés, y si el nombre se repite la receta importada se renombra automáticamente (ej: "Milanesas (1)").'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1234,6 +1257,12 @@
         text.textContent = item.text;
         text.dataset.action = 'toggle-item';
         text.dataset.id = item.id;
+        if (item.recipeCount > 1) {
+          const mult = document.createElement('span');
+          mult.className = 'item-multiplier';
+          mult.textContent = `x${item.recipeCount}`;
+          text.appendChild(mult);
+        }
 
         const editBtn = document.createElement('button');
         editBtn.className = 'edit-btn';
@@ -1288,18 +1317,39 @@
   }
 
   // ---- Sincronización receta -> lista de compras ----
+  // recipeCount cuenta cuántas recetas activas piden ese ingrediente. Así, si
+  // 2 recetas comparten "papas" (se ve como "Papas x2"), desactivar una sola
+  // resta uno en vez de borrar el item entero — solo desaparece cuando ya
+  // ninguna receta activa lo necesita.
   function applyRecipeToShoppingList(recipe) {
     let changed = false;
     recipe.ingredients.forEach((ing) => {
       const existing = items.find((i) => normalize(i.text) === normalize(ing.text));
       if (existing) {
-        if (existing.checked) {
-          existing.checked = false;
-          changed = true;
-        }
-      } else {
-        items.unshift({ id: uid(), text: ing.text, checked: false, category: ing.category || 'otros' });
+        existing.recipeCount = (existing.recipeCount || 0) + 1;
+        if (existing.checked) existing.checked = false;
         changed = true;
+      } else {
+        items.unshift({ id: uid(), text: ing.text, checked: false, category: ing.category || 'otros', recipeCount: 1 });
+        changed = true;
+      }
+    });
+    if (changed) {
+      save();
+      render();
+    }
+  }
+
+  function removeRecipeFromShoppingList(recipe) {
+    let changed = false;
+    recipe.ingredients.forEach((ing) => {
+      const existing = items.find((i) => normalize(i.text) === normalize(ing.text));
+      if (existing && existing.recipeCount > 0) {
+        existing.recipeCount -= 1;
+        changed = true;
+        if (existing.recipeCount <= 0) {
+          items = items.filter((i) => i.id !== existing.id);
+        }
       }
     });
     if (changed) {
@@ -1628,21 +1678,28 @@
     closeRecipePicker();
   }
 
-  // Desactivar NO saca los ingredientes de la lista de compras: puede que ya
-  // hayas comprado algo de eso o que otra receta activa también lo necesite.
   function toggleRecipeActive(dayKey, entryId) {
     const entry = (weeklyPlan[dayKey] || []).find((e) => e.id === entryId);
     if (!entry) return;
     entry.active = !entry.active;
     saveWeeklyPlan();
-    if (entry.active) {
-      const recipe = recipes.find((r) => r.id === entry.recipeId);
-      if (recipe) applyRecipeToShoppingList(recipe);
+    const recipe = recipes.find((r) => r.id === entry.recipeId);
+    if (recipe) {
+      if (entry.active) {
+        applyRecipeToShoppingList(recipe);
+      } else {
+        removeRecipeFromShoppingList(recipe);
+      }
     }
     renderMenu();
   }
 
   function removeRecipeFromDay(dayKey, entryId) {
+    const entry = (weeklyPlan[dayKey] || []).find((e) => e.id === entryId);
+    if (entry && entry.active) {
+      const recipe = recipes.find((r) => r.id === entry.recipeId);
+      if (recipe) removeRecipeFromShoppingList(recipe);
+    }
     weeklyPlan[dayKey] = (weeklyPlan[dayKey] || []).filter((e) => e.id !== entryId);
     saveWeeklyPlan();
     renderMenu();
@@ -1687,15 +1744,101 @@
     const recipe = recipes.find((r) => r.id === id);
     if (!recipe) return;
     if (!confirm(`¿Borrar la receta "${recipe.name}"? Se va a quitar de todos los días donde esté agregada.`)) return;
-    recipes = recipes.filter((r) => r.id !== id);
     Object.keys(weeklyPlan).forEach((dayKey) => {
+      (weeklyPlan[dayKey] || []).forEach((entry) => {
+        if (entry.recipeId === id && entry.active) removeRecipeFromShoppingList(recipe);
+      });
       weeklyPlan[dayKey] = (weeklyPlan[dayKey] || []).filter((e) => e.recipeId !== id);
     });
+    recipes = recipes.filter((r) => r.id !== id);
     saveRecipesData();
     saveWeeklyPlan();
     renderRecipePickerList();
     renderMenu();
   }
+
+  // ---- Exportar / importar recetas ----
+  function exportRecipes() {
+    const payload = {
+      app: 'lista-super-recipes',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      recipes,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lista-super-recetas-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // Si el nombre ya existe (comparado sin tildes/mayúsculas), le agrega
+  // " (1)", " (2)", etc. hasta encontrar uno libre.
+  function uniqueRecipeName(name, takenNormalizedNames) {
+    if (!takenNormalizedNames.has(normalize(name))) return name;
+    let n = 1;
+    while (takenNormalizedNames.has(normalize(`${name} (${n})`))) n++;
+    return `${name} (${n})`;
+  }
+
+  function importRecipesFromPayload(payload) {
+    const importedList = Array.isArray(payload && payload.recipes) ? payload.recipes : null;
+    if (!importedList) {
+      alert('El archivo no es un backup de recetas válido.');
+      return;
+    }
+    const takenNames = new Set(recipes.map((r) => normalize(r.name)));
+    let addedCount = 0;
+    importedList.forEach((r) => {
+      if (!r || typeof r.name !== 'string' || !Array.isArray(r.ingredients)) return;
+      const rawName = r.name.trim();
+      if (!rawName) return;
+      const name = uniqueRecipeName(rawName, takenNames);
+      takenNames.add(normalize(name));
+      const ingredients = r.ingredients
+        .filter((ing) => ing && typeof ing.text === 'string' && ing.text.trim())
+        .map((ing) => ({
+          id: uid(),
+          text: ing.text.trim(),
+          category: (ing.category && catById[ing.category]) ? ing.category : 'otros'
+        }));
+      recipes.push({ id: uid(), name, ingredients });
+      addedCount++;
+    });
+    if (addedCount > 0) {
+      saveRecipesData();
+      renderRecipePickerList();
+      renderMenu();
+    }
+    alert(addedCount > 0
+      ? `Se importaron ${addedCount} receta${addedCount !== 1 ? 's' : ''}.`
+      : 'No se encontró ninguna receta válida en el archivo.');
+  }
+
+  document.getElementById('exportRecipesBtn').addEventListener('click', exportRecipes);
+
+  document.getElementById('importRecipesBtn').addEventListener('click', () => {
+    document.getElementById('importRecipesFile').click();
+  });
+
+  document.getElementById('importRecipesFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        importRecipesFromPayload(JSON.parse(reader.result));
+      } catch (err) {
+        alert('No se pudo leer el archivo.');
+      }
+    };
+    reader.readAsText(file);
+  });
 
   // ---- Editor de receta (nombre + ingredientes indexados) ----
   function openRecipeEditor(recipeId) {
