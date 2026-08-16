@@ -495,6 +495,8 @@
     transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   }
   .modal-cat-btn:active { background: var(--border); }
+  .whatsnew-list { margin: 0 0 16px 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 8px; }
+  .whatsnew-list li { font-size: 13.5px; color: var(--text); line-height: 1.4; }
   .modal-cat-btn.selected {
     border-color: var(--cat-color, var(--accent));
     background: color-mix(in srgb, var(--cat-color, var(--accent)) 18%, var(--card-2));
@@ -572,6 +574,15 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="whatsnewOverlay">
+  <div class="modal">
+    <div class="modal-title">Se actualizó la app</div>
+    <div class="modal-subtitle">versión <span id="whatsnewVersion"></span></div>
+    <ul class="whatsnew-list" id="whatsnewList"></ul>
+    <button class="modal-save-btn" id="whatsnewCloseBtn" type="button">Entendido</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="editModalOverlay">
   <div class="modal">
     <div class="modal-title">Editar item</div>
@@ -588,6 +599,15 @@
   const SHOW_CHECKED_KEY = 'lista_super_show_checked';
   const COLLAPSED_KEY = 'lista_super_collapsed';
   const THEME_KEY = 'lista_super_theme';
+
+  // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
+  const APP_VERSION = '1.1.0';
+  const CHANGELOG = {
+    '1.1.0': [
+      'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
+    ]
+  };
+  const SEEN_VERSION_KEY = 'lista_super_seen_version';
 
   // ---- Tema claro/oscuro ----
   let theme = document.documentElement.getAttribute('data-theme') || 'dark';
@@ -1000,6 +1020,28 @@
     if (e.target.id === 'modalOverlay') closeModal();
   });
 
+  // ---- Novedades de la app ----
+  function closeWhatsnew() {
+    document.getElementById('whatsnewOverlay').classList.remove('show');
+  }
+  document.getElementById('whatsnewCloseBtn').addEventListener('click', closeWhatsnew);
+  document.getElementById('whatsnewOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'whatsnewOverlay') closeWhatsnew();
+  });
+  function checkForUpdate() {
+    let seen = null;
+    try { seen = localStorage.getItem(SEEN_VERSION_KEY); } catch (e) {}
+    if (seen === APP_VERSION) return;
+    const isBrandNewUser = seen === null && items.length === 0;
+    if (!isBrandNewUser) {
+      const entries = CHANGELOG[APP_VERSION] || [];
+      document.getElementById('whatsnewVersion').textContent = APP_VERSION;
+      document.getElementById('whatsnewList').innerHTML = entries.map(text => `<li>${text}</li>`).join('');
+      document.getElementById('whatsnewOverlay').classList.add('show');
+    }
+    try { localStorage.setItem(SEEN_VERSION_KEY, APP_VERSION); } catch (e) {}
+  }
+
   // ---- Modal para editar item existente (nombre + categoría) ----
   function openEditModal(id) {
     const item = items.find(i => i.id === id);
@@ -1221,6 +1263,7 @@
   applyTheme();
   load();
   render();
+  checkForUpdate();
 })();
 
 // Registro del Service Worker (habilita funcionamiento offline)
