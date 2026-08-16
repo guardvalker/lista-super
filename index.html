@@ -918,7 +918,7 @@
   const THEME_KEY = 'lista_super_theme';
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '1.4.0';
+  const APP_VERSION = '1.4.1';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -939,6 +939,9 @@
     '1.4.0': [
       'Al desactivar una receta, sus ingredientes ahora se sacan de la lista de compras. Si 2 o más recetas activas comparten un ingrediente, aparece un contador (ej: "Papas x2") y solo se resta uno por vez, así no desaparece de golpe si otra receta todavía lo necesita.',
       'Nuevo exportar / importar recetas (en "📖 Mis Recetas"): al importar se suman a las que ya tenés, y si el nombre se repite la receta importada se renombra automáticamente (ej: "Milanesas (1)").'
+    ],
+    '1.4.1': [
+      'Arreglamos el campo para agregar ingredientes en una receta, que se veía sin estilo (blanco, sin bordes) en vez de seguir el resto de la app.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
