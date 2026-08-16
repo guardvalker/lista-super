@@ -532,6 +532,195 @@
     box-shadow: var(--shadow);
   }
   .modal-save-btn:active { transform: scale(0.98); }
+
+  .header-actions { display: flex; gap: 8px; }
+  #newRecipeBtn { margin: 0 0 14px 0; }
+  #recipeIngRow { margin-bottom: 12px; }
+
+  /* ---- Menú semanal: pantalla completa con el calendario de 2 semanas ---- */
+  .screen-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-solid);
+    z-index: 90;
+    display: none;
+    flex-direction: column;
+  }
+  .screen-overlay.show { display: flex; }
+  .screen {
+    max-width: 520px;
+    margin: 0 auto;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .screen-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: calc(16px + env(safe-area-inset-top)) 16px 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .screen-title {
+    flex: 1;
+    font-size: 18px;
+    font-weight: 800;
+  }
+  .screen-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px calc(24px + env(safe-area-inset-bottom)) 16px;
+  }
+  .week-heading {
+    font-size: 12.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin: 18px 0 8px 0;
+  }
+  .week-heading:first-child { margin-top: 0; }
+  .day-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 12px 10px 12px;
+    margin-bottom: 10px;
+  }
+  .day-name {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .day-recipes {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .day-empty {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    padding: 4px 0 8px 0;
+  }
+  .day-add-btn {
+    width: 100%;
+    background: var(--card-2);
+    border: 1px dashed var(--border);
+    color: var(--text-dim);
+    padding: 9px;
+    border-radius: 10px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .day-add-btn:active { background: var(--border); }
+
+  .recipe-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 7px 7px 7px 6px;
+  }
+  .recipe-chip.active { border-color: var(--accent); background: var(--accent-dim); }
+  .chip-checkbox {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    border-radius: 6px;
+    border: 2px solid var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: transparent;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+  .recipe-chip.active .chip-checkbox {
+    background: linear-gradient(135deg, var(--ctp-green), var(--ctp-teal));
+    border-color: transparent;
+    color: var(--on-accent);
+  }
+  .recipe-chip-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+    cursor: pointer;
+    min-width: 0;
+  }
+  .recipe-chip-name { font-size: 13.5px; font-weight: 600; }
+  .recipe-chip-count { font-size: 11px; color: var(--text-dim); }
+  .recipe-chip-remove {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 15px;
+    cursor: pointer;
+    padding: 4px 6px;
+    line-height: 1;
+  }
+  .recipe-chip-remove:active { color: var(--danger); }
+
+  /* fila de receta dentro del picker/biblioteca */
+  .recipe-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 8px 10px 12px;
+    margin-bottom: 8px;
+  }
+  .recipe-row-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.35;
+    cursor: pointer;
+    min-width: 0;
+  }
+  .recipe-row-name { font-size: 14.5px; font-weight: 600; }
+  .recipe-row-count { font-size: 11.5px; color: var(--text-dim); }
+
+  /* lista de ingredientes dentro del editor de receta */
+  .ingredient-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .ingredient-empty { font-size: 12.5px; color: var(--text-dim); padding: 8px 0; }
+  .ingredient-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--cat-color, var(--border));
+    border-radius: 10px;
+    padding: 8px 10px;
+  }
+  .ingredient-chip-icon { font-size: 14px; }
+  .ingredient-chip-text { flex: 1; font-size: 14px; }
+  .ingredient-chip-remove {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 15px;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+  }
+  .ingredient-chip-remove:active { color: var(--danger); }
 </style>
 </head>
 <body>
@@ -539,7 +728,10 @@
   <header>
     <div class="header-top">
       <h1>🛒 Lista del Super</h1>
-      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Cambiar tema"></button>
+      <div class="header-actions">
+        <button class="theme-toggle" id="menuBtn" type="button" aria-label="Menú semanal">📅</button>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="Cambiar tema"></button>
+      </div>
     </div>
     <div class="subtitle" id="counter">0 items</div>
     <div class="add-row">
@@ -593,6 +785,40 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="recipePickerOverlay">
+  <div class="modal">
+    <div class="modal-title" id="recipePickerTitle">Mis Recetas</div>
+    <button class="modal-save-btn" id="newRecipeBtn" type="button">+ Nueva receta</button>
+    <div id="recipePickerList"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="recipeEditorOverlay">
+  <div class="modal">
+    <div class="modal-title">Receta</div>
+    <input type="text" id="recipeNameInput" class="modal-input" placeholder="Nombre de la receta (ej: Milanesas con puré)" autocomplete="off" autocorrect="off">
+    <div class="modal-subtitle">Ingredientes</div>
+    <div class="add-row" id="recipeIngRow">
+      <input type="text" id="recipeIngInput" placeholder="Agregar ingrediente..." autocomplete="off" autocorrect="off">
+      <button id="recipeIngAddBtn" type="button">+</button>
+      <div class="suggestions" id="recipeIngSuggestions"></div>
+    </div>
+    <div id="recipeIngList" class="ingredient-list"></div>
+    <button class="modal-save-btn" id="recipeSaveBtn" type="button">Guardar receta</button>
+  </div>
+</div>
+
+<div class="screen-overlay" id="menuOverlay">
+  <div class="screen">
+    <div class="screen-header">
+      <button class="theme-toggle" id="menuBackBtn" type="button" aria-label="Volver">←</button>
+      <div class="screen-title">Menú Semanal</div>
+      <button class="theme-toggle" id="recipesLibraryBtn" type="button" aria-label="Mis recetas">📖</button>
+    </div>
+    <div class="screen-body" id="menuBody"></div>
+  </div>
+</div>
+
 <script>
 (function() {
   const STORAGE_KEY = 'lista_super_items';
@@ -601,10 +827,14 @@
   const THEME_KEY = 'lista_super_theme';
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '1.1.0';
+  const APP_VERSION = '1.2.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
+    ],
+    '1.2.0': [
+      'Nuevo menú semanal (📅 arriba, al lado del día/noche): armá recetas con nombre e ingredientes y organizalas en un calendario de 2 semanas.',
+      'Al activar una receta, sus ingredientes aparecen en la lista de compras: si ya estaban tachados se destachan, y si no estaban se agregan.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -793,10 +1023,19 @@
   let showChecked = true;
   let collapsed = {};
   let pendingText = null; // texto esperando que el usuario elija categoría
-  let highlightedIndex = -1;
-  let currentSuggestions = [];
+  let categoryModalTarget = 'list'; // 'list' (lista principal) | 'ingredient' (editor de receta)
   let editingId = null; // id del item que se está editando
   let editingCategory = null; // categoría elegida en el modal de edición
+
+  // ---- Menú semanal ----
+  const RECIPES_KEY = 'lista_super_recipes';
+  const WEEKLY_PLAN_KEY = 'lista_super_weekly_plan';
+  const WEEKDAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  let recipes = []; // [{ id, name, ingredients: [{id, text, category}] }]
+  let weeklyPlan = {}; // { 'w1-0': [{id, recipeId, active}], ... }
+  let pickerDayKey = null; // día para el que se está eligiendo receta (null = modo biblioteca)
+  let editingRecipeId = null; // id de la receta que se está editando (null = nueva)
+  let editingRecipeIngredients = []; // ingredientes de la receta que se está editando
 
   function load() {
     try {
@@ -817,8 +1056,31 @@
     localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsed));
   }
 
+  function loadRecipes() {
+    try {
+      recipes = JSON.parse(localStorage.getItem(RECIPES_KEY) || '[]');
+    } catch (e) { recipes = []; }
+    try {
+      weeklyPlan = JSON.parse(localStorage.getItem(WEEKLY_PLAN_KEY) || '{}');
+    } catch (e) { weeklyPlan = {}; }
+  }
+
+  function saveRecipesData() {
+    localStorage.setItem(RECIPES_KEY, JSON.stringify(recipes));
+  }
+
+  function saveWeeklyPlan() {
+    localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(weeklyPlan));
+  }
+
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
   }
 
   function render() {
@@ -938,8 +1200,49 @@
     if (category) {
       addItemWithCategory(trimmed, category);
     } else {
+      categoryModalTarget = 'list';
       openCategoryModal(trimmed);
     }
+  }
+
+  // ---- Sincronización receta -> lista de compras ----
+  function applyRecipeToShoppingList(recipe) {
+    let changed = false;
+    recipe.ingredients.forEach((ing) => {
+      const existing = items.find((i) => normalize(i.text) === normalize(ing.text));
+      if (existing) {
+        if (existing.checked) {
+          existing.checked = false;
+          changed = true;
+        }
+      } else {
+        items.unshift({ id: uid(), text: ing.text, checked: false, category: ing.category || 'otros' });
+        changed = true;
+      }
+    });
+    if (changed) {
+      save();
+      render();
+    }
+  }
+
+  function addRecipeIngredient(text) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const category = detectCategory(trimmed);
+    if (category) {
+      addIngredientToEditor(trimmed, category);
+    } else {
+      categoryModalTarget = 'ingredient';
+      openCategoryModal(trimmed);
+    }
+  }
+
+  function addIngredientToEditor(text, category) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    editingRecipeIngredients.push({ id: uid(), text: trimmed, category });
+    renderEditorIngredients();
   }
 
   const REMOVE_ANIM_MS = 320;
@@ -1104,7 +1407,230 @@
     }
   });
 
+  // ---- Menú semanal ----
+  function openMenu() {
+    renderMenu();
+    document.getElementById('menuOverlay').classList.add('show');
+  }
+
+  function closeMenu() {
+    document.getElementById('menuOverlay').classList.remove('show');
+  }
+
+  function renderMenu() {
+    const body = document.getElementById('menuBody');
+    body.innerHTML = '';
+    [1, 2].forEach((week) => {
+      const heading = document.createElement('div');
+      heading.className = 'week-heading';
+      heading.textContent = `Semana ${week}`;
+      body.appendChild(heading);
+
+      WEEKDAYS.forEach((dayName, dIdx) => {
+        const dayKey = `w${week}-${dIdx}`;
+        const entries = weeklyPlan[dayKey] || [];
+        const card = document.createElement('div');
+        card.className = 'day-card';
+        card.innerHTML = `
+          <span class="day-name">${dayName}</span>
+          <div class="day-recipes">
+            ${entries.map((entry) => renderDayRecipeChip(entry, dayKey)).join('') || '<div class="day-empty">Sin recetas para este día</div>'}
+          </div>
+          <button class="day-add-btn" type="button" data-action="add-recipe-to-day" data-day-key="${dayKey}">+ Agregar receta</button>
+        `;
+        body.appendChild(card);
+      });
+    });
+  }
+
+  function renderDayRecipeChip(entry, dayKey) {
+    const recipe = recipes.find((r) => r.id === entry.recipeId);
+    if (!recipe) return '';
+    return `
+      <div class="recipe-chip${entry.active ? ' active' : ''}">
+        <div class="chip-checkbox" data-action="toggle-recipe-active" data-day-key="${dayKey}" data-entry-id="${entry.id}">${entry.active ? '✓' : ''}</div>
+        <div class="recipe-chip-body" data-action="toggle-recipe-active" data-day-key="${dayKey}" data-entry-id="${entry.id}">
+          <span class="recipe-chip-name">${escapeHtml(recipe.name)}</span>
+          <span class="recipe-chip-count">${recipe.ingredients.length} ingrediente${recipe.ingredients.length !== 1 ? 's' : ''}${entry.active ? ' · en la lista' : ''}</span>
+        </div>
+        <button class="recipe-chip-remove" type="button" data-action="remove-recipe-from-day" data-day-key="${dayKey}" data-entry-id="${entry.id}">✕</button>
+      </div>
+    `;
+  }
+
+  function assignRecipeToDay(dayKey, recipeId) {
+    if (!dayKey || !recipeId) return;
+    if (!weeklyPlan[dayKey]) weeklyPlan[dayKey] = [];
+    weeklyPlan[dayKey].push({ id: uid(), recipeId, active: false });
+    saveWeeklyPlan();
+    renderMenu();
+    closeRecipePicker();
+  }
+
+  // Desactivar NO saca los ingredientes de la lista de compras: puede que ya
+  // hayas comprado algo de eso o que otra receta activa también lo necesite.
+  function toggleRecipeActive(dayKey, entryId) {
+    const entry = (weeklyPlan[dayKey] || []).find((e) => e.id === entryId);
+    if (!entry) return;
+    entry.active = !entry.active;
+    saveWeeklyPlan();
+    if (entry.active) {
+      const recipe = recipes.find((r) => r.id === entry.recipeId);
+      if (recipe) applyRecipeToShoppingList(recipe);
+    }
+    renderMenu();
+  }
+
+  function removeRecipeFromDay(dayKey, entryId) {
+    weeklyPlan[dayKey] = (weeklyPlan[dayKey] || []).filter((e) => e.id !== entryId);
+    saveWeeklyPlan();
+    renderMenu();
+  }
+
+  // ---- Picker / biblioteca de recetas ----
+  // Mismo bottom sheet para dos usos: si pickerDayKey tiene valor, tocar una
+  // receta la asigna a ese día; si es null, es el modo "Mis Recetas" y tocarla
+  // la abre para editar.
+  function openRecipePicker(dayKey) {
+    pickerDayKey = dayKey || null;
+    document.getElementById('recipePickerTitle').textContent = pickerDayKey ? 'Elegí una receta' : 'Mis Recetas';
+    renderRecipePickerList();
+    document.getElementById('recipePickerOverlay').classList.add('show');
+  }
+
+  function closeRecipePicker() {
+    document.getElementById('recipePickerOverlay').classList.remove('show');
+    pickerDayKey = null;
+  }
+
+  function renderRecipePickerList() {
+    const list = document.getElementById('recipePickerList');
+    if (recipes.length === 0) {
+      list.innerHTML = '<div class="empty" style="padding:24px 0;">Todavía no creaste ninguna receta.<br>Tocá "+ Nueva receta" para armar la primera.</div>';
+      return;
+    }
+    const bodyAction = pickerDayKey ? 'assign-recipe' : 'edit-recipe';
+    list.innerHTML = recipes.map((r) => `
+      <div class="recipe-row">
+        <div class="recipe-row-body" data-action="${bodyAction}" data-recipe-id="${r.id}">
+          <span class="recipe-row-name">${escapeHtml(r.name)}</span>
+          <span class="recipe-row-count">${r.ingredients.length} ingrediente${r.ingredients.length !== 1 ? 's' : ''}</span>
+        </div>
+        <button class="edit-btn" type="button" data-action="edit-recipe" data-recipe-id="${r.id}">✏️</button>
+        <button class="delete-btn" type="button" data-action="delete-recipe" data-recipe-id="${r.id}">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function deleteRecipe(id) {
+    const recipe = recipes.find((r) => r.id === id);
+    if (!recipe) return;
+    if (!confirm(`¿Borrar la receta "${recipe.name}"? Se va a quitar de todos los días donde esté agregada.`)) return;
+    recipes = recipes.filter((r) => r.id !== id);
+    Object.keys(weeklyPlan).forEach((dayKey) => {
+      weeklyPlan[dayKey] = (weeklyPlan[dayKey] || []).filter((e) => e.recipeId !== id);
+    });
+    saveRecipesData();
+    saveWeeklyPlan();
+    renderRecipePickerList();
+    renderMenu();
+  }
+
+  // ---- Editor de receta (nombre + ingredientes indexados) ----
+  function openRecipeEditor(recipeId) {
+    editingRecipeId = recipeId || null;
+    if (editingRecipeId) {
+      const r = recipes.find((x) => x.id === editingRecipeId);
+      document.getElementById('recipeNameInput').value = r.name;
+      editingRecipeIngredients = r.ingredients.map((i) => ({ ...i }));
+    } else {
+      document.getElementById('recipeNameInput').value = '';
+      editingRecipeIngredients = [];
+    }
+    document.getElementById('recipeIngInput').value = '';
+    renderEditorIngredients();
+    document.getElementById('recipeEditorOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('recipeNameInput').focus(), 50);
+  }
+
+  function closeRecipeEditor() {
+    document.getElementById('recipeEditorOverlay').classList.remove('show');
+    editingRecipeId = null;
+    editingRecipeIngredients = [];
+  }
+
+  function renderEditorIngredients() {
+    const box = document.getElementById('recipeIngList');
+    if (editingRecipeIngredients.length === 0) {
+      box.innerHTML = '<div class="ingredient-empty">Todavía no agregaste ingredientes.</div>';
+      return;
+    }
+    box.innerHTML = editingRecipeIngredients.map((ing) => {
+      const cat = catById[ing.category] || catById['otros'];
+      return `<div class="ingredient-chip" style="--cat-color:${catColorVar(cat)}">
+        <span class="ingredient-chip-icon">${cat.icon}</span>
+        <span class="ingredient-chip-text">${escapeHtml(ing.text)}</span>
+        <button class="ingredient-chip-remove" type="button" data-action="remove-recipe-ingredient" data-ing-id="${ing.id}">✕</button>
+      </div>`;
+    }).join('');
+  }
+
+  function saveRecipe() {
+    const name = document.getElementById('recipeNameInput').value.trim();
+    if (!name) {
+      document.getElementById('recipeNameInput').focus();
+      return;
+    }
+    if (editingRecipeIngredients.length === 0) {
+      document.getElementById('recipeIngInput').focus();
+      return;
+    }
+    const wasNew = !editingRecipeId;
+    let recipeId;
+    if (editingRecipeId) {
+      const r = recipes.find((x) => x.id === editingRecipeId);
+      r.name = name;
+      r.ingredients = editingRecipeIngredients;
+      recipeId = r.id;
+    } else {
+      recipeId = uid();
+      recipes.push({ id: recipeId, name, ingredients: editingRecipeIngredients });
+    }
+    saveRecipesData();
+    closeRecipeEditor();
+    if (wasNew && pickerDayKey) {
+      assignRecipeToDay(pickerDayKey, recipeId);
+    } else {
+      renderRecipePickerList();
+      renderMenu();
+    }
+  }
+
+  document.getElementById('menuBtn').addEventListener('click', openMenu);
+  document.getElementById('menuBackBtn').addEventListener('click', closeMenu);
+  document.getElementById('recipesLibraryBtn').addEventListener('click', () => openRecipePicker(null));
+  document.getElementById('newRecipeBtn').addEventListener('click', () => openRecipeEditor(null));
+  document.getElementById('recipeSaveBtn').addEventListener('click', saveRecipe);
+
+  document.getElementById('recipePickerOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'recipePickerOverlay') closeRecipePicker();
+  });
+  document.getElementById('recipeEditorOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'recipeEditorOverlay') closeRecipeEditor();
+  });
+
+  document.getElementById('recipeNameInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('recipeIngInput').focus();
+    } else if (e.key === 'Escape') {
+      closeRecipeEditor();
+    }
+  });
+
   // ---- Autocompletado ----
+  // Genérico porque lo usamos tanto en el input principal como en el de
+  // ingredientes de una receta: misma navegación por teclado, mismo dropdown.
   const KNOWN_PRODUCTS = Object.keys(PRODUCT_MAP).sort((a,b) => a.length - b.length);
 
   function getSuggestions(query) {
@@ -1121,93 +1647,101 @@
     return [...starts, ...contains].slice(0, 6);
   }
 
-  function renderSuggestions(query) {
-    const box = document.getElementById('suggestions');
-    const list = getSuggestions(query);
-    currentSuggestions = list;
-    highlightedIndex = -1;
-    if (list.length === 0) {
-      box.classList.remove('show');
-      box.innerHTML = '';
-      return;
-    }
-    box.innerHTML = list.map((p, idx) => {
-      const cat = catById[PRODUCT_MAP[p]];
-      const label = p.charAt(0).toUpperCase() + p.slice(1);
-      return `<div class="suggestion-item" data-idx="${idx}">
-        <span>${label}</span>
-        <span class="suggestion-cat" style="--cat-color:${catColorVar(cat)}">${cat.icon} ${cat.name}</span>
-      </div>`;
-    }).join('');
-    box.classList.add('show');
+  function wireSuggestInput(inputEl, boxEl, onSelect) {
+    let list = [];
+    let highlighted = -1;
 
-    box.querySelectorAll('.suggestion-item').forEach(el => {
-      el.addEventListener('click', () => {
-        const idx = parseInt(el.dataset.idx, 10);
-        selectSuggestion(idx);
+    function renderBox(query) {
+      list = getSuggestions(query);
+      highlighted = -1;
+      if (list.length === 0) {
+        boxEl.classList.remove('show');
+        boxEl.innerHTML = '';
+        return;
+      }
+      boxEl.innerHTML = list.map((p, idx) => {
+        const cat = catById[PRODUCT_MAP[p]];
+        const label = p.charAt(0).toUpperCase() + p.slice(1);
+        return `<div class="suggestion-item" data-idx="${idx}">
+          <span>${label}</span>
+          <span class="suggestion-cat" style="--cat-color:${catColorVar(cat)}">${cat.icon} ${cat.name}</span>
+        </div>`;
+      }).join('');
+      boxEl.classList.add('show');
+      boxEl.querySelectorAll('.suggestion-item').forEach((el) => {
+        el.addEventListener('click', () => pick(parseInt(el.dataset.idx, 10)));
       });
+    }
+
+    function pick(idx) {
+      const p = list[idx];
+      if (!p) return;
+      const label = p.charAt(0).toUpperCase() + p.slice(1);
+      onSelect(label);
+      inputEl.value = '';
+      hide();
+      inputEl.focus();
+    }
+
+    function hide() {
+      boxEl.classList.remove('show');
+      boxEl.innerHTML = '';
+      list = [];
+      highlighted = -1;
+    }
+
+    inputEl.addEventListener('input', (e) => renderBox(e.target.value));
+
+    inputEl.addEventListener('keydown', (e) => {
+      const els = boxEl.querySelectorAll('.suggestion-item');
+      if (e.key === 'ArrowDown' && els.length) {
+        e.preventDefault();
+        highlighted = Math.min(highlighted + 1, els.length - 1);
+        els.forEach((el, i) => el.classList.toggle('highlighted', i === highlighted));
+      } else if (e.key === 'ArrowUp' && els.length) {
+        e.preventDefault();
+        highlighted = Math.max(highlighted - 1, 0);
+        els.forEach((el, i) => el.classList.toggle('highlighted', i === highlighted));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (highlighted >= 0 && list[highlighted]) {
+          pick(highlighted);
+        } else {
+          onSelect(e.target.value);
+          e.target.value = '';
+          hide();
+        }
+      } else if (e.key === 'Escape') {
+        hide();
+      }
     });
-  }
 
-  function selectSuggestion(idx) {
-    const p = currentSuggestions[idx];
-    if (!p) return;
-    const label = p.charAt(0).toUpperCase() + p.slice(1);
-    addItem(label);
-    const input = document.getElementById('newItem');
-    input.value = '';
-    hideSuggestions();
-    input.focus();
-  }
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest(`#${inputEl.id}`) && !e.target.closest(`#${boxEl.id}`)) hide();
+    });
 
-  function hideSuggestions() {
-    document.getElementById('suggestions').classList.remove('show');
-    currentSuggestions = [];
-    highlightedIndex = -1;
+    return { hide };
   }
 
   // ---- Event listeners ----
   const input = document.getElementById('newItem');
+  const mainSuggest = wireSuggestInput(document.getElementById('newItem'), document.getElementById('suggestions'), (text) => addItem(text));
 
   document.getElementById('addBtn').addEventListener('click', () => {
     addItem(input.value);
     input.value = '';
-    hideSuggestions();
+    mainSuggest.hide();
     input.focus();
   });
 
-  input.addEventListener('input', (e) => {
-    renderSuggestions(e.target.value);
-  });
+  const recipeIngInput = document.getElementById('recipeIngInput');
+  const recipeIngSuggest = wireSuggestInput(recipeIngInput, document.getElementById('recipeIngSuggestions'), (text) => addRecipeIngredient(text));
 
-  input.addEventListener('keydown', (e) => {
-    const box = document.getElementById('suggestions');
-    const itemsEls = box.querySelectorAll('.suggestion-item');
-
-    if (e.key === 'ArrowDown' && itemsEls.length) {
-      e.preventDefault();
-      highlightedIndex = Math.min(highlightedIndex + 1, itemsEls.length - 1);
-      itemsEls.forEach((el, i) => el.classList.toggle('highlighted', i === highlightedIndex));
-    } else if (e.key === 'ArrowUp' && itemsEls.length) {
-      e.preventDefault();
-      highlightedIndex = Math.max(highlightedIndex - 1, 0);
-      itemsEls.forEach((el, i) => el.classList.toggle('highlighted', i === highlightedIndex));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (highlightedIndex >= 0 && currentSuggestions[highlightedIndex]) {
-        selectSuggestion(highlightedIndex);
-      } else {
-        addItem(e.target.value);
-        e.target.value = '';
-        hideSuggestions();
-      }
-    } else if (e.key === 'Escape') {
-      hideSuggestions();
-    }
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.add-row')) hideSuggestions();
+  document.getElementById('recipeIngAddBtn').addEventListener('click', () => {
+    addRecipeIngredient(recipeIngInput.value);
+    recipeIngInput.value = '';
+    recipeIngSuggest.hide();
+    recipeIngInput.focus();
   });
 
   document.getElementById('toggleChecked').addEventListener('click', () => {
@@ -1239,17 +1773,40 @@
     } else if (action === 'edit-item') {
       openEditModal(target.dataset.id);
     } else if (action === 'pick-category') {
-      addItemWithCategory(pendingText, target.dataset.catId);
+      if (categoryModalTarget === 'ingredient') {
+        addIngredientToEditor(pendingText, target.dataset.catId);
+      } else {
+        addItemWithCategory(pendingText, target.dataset.catId);
+      }
+      categoryModalTarget = 'list';
       closeModal();
     } else if (action === 'select-edit-category') {
       editingCategory = target.dataset.catId;
       renderEditGrid();
+    } else if (action === 'add-recipe-to-day') {
+      openRecipePicker(target.dataset.dayKey);
+    } else if (action === 'toggle-recipe-active') {
+      toggleRecipeActive(target.dataset.dayKey, target.dataset.entryId);
+    } else if (action === 'remove-recipe-from-day') {
+      removeRecipeFromDay(target.dataset.dayKey, target.dataset.entryId);
+    } else if (action === 'assign-recipe') {
+      assignRecipeToDay(pickerDayKey, target.dataset.recipeId);
+    } else if (action === 'edit-recipe') {
+      openRecipeEditor(target.dataset.recipeId);
+    } else if (action === 'delete-recipe') {
+      deleteRecipe(target.dataset.recipeId);
+    } else if (action === 'remove-recipe-ingredient') {
+      editingRecipeIngredients = editingRecipeIngredients.filter((i) => i.id !== target.dataset.ingId);
+      renderEditorIngredients();
     }
   }
 
   document.getElementById('main').addEventListener('click', handleDelegatedClick);
   document.getElementById('modalGrid').addEventListener('click', handleDelegatedClick);
   document.getElementById('editModalGrid').addEventListener('click', handleDelegatedClick);
+  document.getElementById('menuBody').addEventListener('click', handleDelegatedClick);
+  document.getElementById('recipePickerList').addEventListener('click', handleDelegatedClick);
+  document.getElementById('recipeIngList').addEventListener('click', handleDelegatedClick);
 
   // Refuerzo táctil: algunos WebViews de Android disparan click con demora
   // o lo pierden en scroll rápido. touchend + click combinados sin duplicar.
@@ -1262,6 +1819,7 @@
   // Init
   applyTheme();
   load();
+  loadRecipes();
   render();
   checkForUpdate();
 })();
