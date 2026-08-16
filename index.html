@@ -153,7 +153,11 @@
     background-clip: text;
     -webkit-text-fill-color: transparent;
     width: fit-content;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.12s ease;
   }
+  h1:active { opacity: 0.7; }
   .theme-toggle {
     background: var(--card);
     border: 1px solid var(--border);
@@ -534,6 +538,14 @@
   .modal-save-btn:active { transform: scale(0.98); }
 
   .header-actions { display: flex; gap: 8px; }
+  .version-history-group { margin-bottom: 10px; }
+  .version-history-group .v {
+    font-size: 11.5px;
+    font-weight: 800;
+    color: var(--accent-2);
+    margin-bottom: 4px;
+  }
+  #versionRefreshBtn:disabled { opacity: 0.6; }
   #newRecipeBtn { margin: 0 0 14px 0; }
   #recipeIngRow { margin-bottom: 12px; }
 
@@ -776,7 +788,7 @@
 <div class="app">
   <header>
     <div class="header-top">
-      <h1>🛒 Lista del Super</h1>
+      <h1 id="titleBtn" role="button" tabindex="0" aria-label="Ver versión y buscar actualización">🛒 Lista del Super</h1>
       <div class="header-actions">
         <button class="theme-toggle" id="menuBtn" type="button" aria-label="Menú semanal">📅</button>
         <button class="theme-toggle" id="themeToggle" type="button" aria-label="Cambiar tema"></button>
@@ -821,6 +833,15 @@
     <div class="modal-subtitle">versión <span id="whatsnewVersion"></span></div>
     <ul class="whatsnew-list" id="whatsnewList"></ul>
     <button class="modal-save-btn" id="whatsnewCloseBtn" type="button">Entendido</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="versionOverlay">
+  <div class="modal">
+    <div class="modal-title">Versión instalada</div>
+    <div class="modal-subtitle">versión <span id="versionNumCurrent"></span></div>
+    <div id="versionHistory"></div>
+    <button class="modal-save-btn" id="versionRefreshBtn" type="button">🔄 Buscar actualización</button>
   </div>
 </div>
 
@@ -876,7 +897,7 @@
   const THEME_KEY = 'lista_super_theme';
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '1.2.0';
+  const APP_VERSION = '1.3.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -884,6 +905,9 @@
     '1.2.0': [
       'Nuevo menú semanal (📅 arriba, al lado del día/noche): armá recetas con nombre e ingredientes y organizalas en un calendario de 2 semanas.',
       'Al activar una receta, sus ingredientes aparecen en la lista de compras: si ya estaban tachados se destachan, y si no estaban se agregan.'
+    ],
+    '1.3.0': [
+      'El título "Lista del Super" ahora es un botón: muestra la versión instalada, el historial de cambios y deja forzar una actualización si el celular se quedó con una versión vieja.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1396,6 +1420,55 @@
     }
     try { localStorage.setItem(SEEN_VERSION_KEY, APP_VERSION); } catch (e) {}
   }
+
+  // ---- Versión instalada / buscar actualización ----
+  function renderVersionHistory() {
+    document.getElementById('versionNumCurrent').textContent = APP_VERSION;
+    const versions = Object.keys(CHANGELOG).reverse(); // más nueva primero
+    document.getElementById('versionHistory').innerHTML = versions.map((v) => `
+      <div class="version-history-group">
+        <div class="v">${v}</div>
+        <ul class="whatsnew-list">${CHANGELOG[v].map((text) => `<li>${text}</li>`).join('')}</ul>
+      </div>
+    `).join('');
+  }
+
+  function openVersionModal() {
+    renderVersionHistory();
+    document.getElementById('versionOverlay').classList.add('show');
+  }
+
+  function closeVersionModal() {
+    document.getElementById('versionOverlay').classList.remove('show');
+  }
+
+  document.getElementById('titleBtn').addEventListener('click', openVersionModal);
+  document.getElementById('titleBtn').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openVersionModal();
+    }
+  });
+  document.getElementById('versionOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'versionOverlay') closeVersionModal();
+  });
+
+  // Fuerza al service worker a chequear si hay una versión nueva de sw.js y
+  // recarga ya en limpio, para cuando el celular se quedó con la caché vieja.
+  document.getElementById('versionRefreshBtn').addEventListener('click', () => {
+    const btn = document.getElementById('versionRefreshBtn');
+    btn.disabled = true;
+    btn.textContent = 'Actualizando...';
+    const reload = () => location.reload();
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration()
+        .then((reg) => (reg ? reg.update().catch(() => {}) : null))
+        .then(reload)
+        .catch(reload);
+    } else {
+      reload();
+    }
+  });
 
   // ---- Modal para editar item existente (nombre + categoría) ----
   function openEditModal(id) {
