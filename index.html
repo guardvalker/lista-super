@@ -918,7 +918,7 @@
   const THEME_KEY = 'lista_super_theme';
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '1.4.1';
+  const APP_VERSION = '1.5.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -942,6 +942,10 @@
     ],
     '1.4.1': [
       'Arreglamos el campo para agregar ingredientes en una receta, que se veía sin estilo (blanco, sin bordes) en vez de seguir el resto de la app.'
+    ],
+    '1.5.0': [
+      'Editar una receta que ya está activada ahora actualiza la lista de compras al toque: los ingredientes que sacaste desaparecen y los que agregaste aparecen.',
+      'Limpiamos el listado de productos: sacamos duplicados de plural (ej. "papas" cuando ya estaba "papa", "milanesas" cuando ya estaba "milanesa") que ensuciaban las sugerencias al escribir.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -996,7 +1000,7 @@
     'uva':'frutas_verduras','frutilla':'frutas_verduras','durazno':'frutas_verduras','ciruela':'frutas_verduras',
     'kiwi':'frutas_verduras','ananá':'frutas_verduras','ananas':'frutas_verduras','melon':'frutas_verduras',
     'sandia':'frutas_verduras','palta':'frutas_verduras','mango':'frutas_verduras','cereza':'frutas_verduras',
-    'papa':'frutas_verduras','papas':'frutas_verduras','batata':'frutas_verduras','cebolla':'frutas_verduras',
+    'papa':'frutas_verduras','batata':'frutas_verduras','cebolla':'frutas_verduras',
     'tomate':'frutas_verduras','lechuga':'frutas_verduras','zanahoria':'frutas_verduras','zapallo':'frutas_verduras',
     'zapallito':'frutas_verduras','calabaza':'frutas_verduras','morron':'frutas_verduras','pimiento':'frutas_verduras',
     'ajo':'frutas_verduras','apio':'frutas_verduras','brocoli':'frutas_verduras','coliflor':'frutas_verduras',
@@ -1009,30 +1013,30 @@
     // Carnes y fiambres
     'carne':'carnes','carne picada':'carnes','asado':'carnes','vacio':'carnes','matambre':'carnes',
     'bife':'carnes','bife de chorizo':'carnes','lomo':'carnes','pollo':'carnes','pechuga':'carnes',
-    'pata muslo':'carnes','milanesa':'carnes','milanesas':'carnes','cerdo':'carnes','chorizo':'carnes',
-    'salchicha':'carnes','salchichas':'carnes','morcilla':'carnes','panceta':'carnes','costilla':'carnes',
+    'pata muslo':'carnes','milanesa':'carnes','cerdo':'carnes','chorizo':'carnes',
+    'salchicha':'carnes','morcilla':'carnes','panceta':'carnes','costilla':'carnes',
     'costeleta':'carnes','jamon':'carnes','jamon cocido':'carnes','jamon crudo':'carnes','salame':'carnes',
     'salamin':'carnes','mortadela':'carnes','paleta':'carnes','bondiola':'carnes','higado':'carnes',
     'nalga':'carnes','peceto':'carnes','cuadril':'carnes','entraña':'carnes','tapa de asado':'carnes',
-    'hamburguesa':'carnes','hamburguesas':'carnes','pate':'carnes','fiambre':'carnes','queso de cerdo':'carnes',
+    'hamburguesa':'carnes','pate':'carnes','fiambre':'carnes','queso de cerdo':'carnes',
 
     // Pescados
     'pescado':'pescados','merluza':'pescados','salmon':'pescados','atun':'pescados','atun lata':'pescados',
-    'camaron':'pescados','camarones':'pescados','langostino':'pescados','langostinos':'pescados',
-    'mejillon':'pescados','mejillones':'pescados','calamar':'pescados','pulpo':'pescados','trucha':'pescados',
-    'anchoa':'pescados','anchoas':'pescados','caballa':'pescados','sardina':'pescados','sardinas':'pescados',
+    'camaron':'pescados','langostino':'pescados',
+    'mejillon':'pescados','calamar':'pescados','pulpo':'pescados','trucha':'pescados',
+    'anchoa':'pescados','caballa':'pescados','sardina':'pescados',
 
     // Lácteos y huevos
     'leche':'lacteos','yogur':'lacteos','yogurt':'lacteos','queso':'lacteos','queso rallado':'lacteos',
     'queso cremoso':'lacteos','queso untable':'lacteos','muzzarella':'lacteos','mozzarella':'lacteos',
-    'manteca':'lacteos','crema':'lacteos','crema de leche':'lacteos','huevo':'lacteos','huevos':'lacteos',
+    'manteca':'lacteos','crema':'lacteos','crema de leche':'lacteos','huevo':'lacteos',
     'dulce de leche':'lacteos','ricota':'lacteos','flan':'lacteos','postre':'lacteos','danonino':'lacteos',
     'yogur bebible':'lacteos','leche chocolatada':'lacteos','crema chantilly':'lacteos','margarina':'lacteos',
 
     // Panadería
     'pan':'panaderia','pan lactal':'panaderia','pan de molde':'panaderia','pan frances':'panaderia',
-    'facturas':'panaderia','factura':'panaderia','medialuna':'panaderia','medialunas':'panaderia',
-    'tostadas':'panaderia','tostado':'panaderia','bizcocho':'panaderia','bizcochos':'panaderia',
+    'factura':'panaderia','medialuna':'panaderia',
+    'tostadas':'panaderia','tostado':'panaderia','bizcocho':'panaderia',
     'grisines':'panaderia','pan rallado':'panaderia','pan dulce':'panaderia','torta':'panaderia',
     'masitas':'panaderia','magdalenas':'panaderia','budin':'panaderia','pan arabe':'panaderia',
     'tapas de empanada':'panaderia','tapas de tarta':'panaderia','prepizza':'panaderia',
@@ -1041,10 +1045,10 @@
     'arroz':'almacen','fideos':'almacen','pasta':'almacen','polenta':'almacen','harina':'almacen',
     'harina 0000':'almacen','harina leudante':'almacen','azucar':'almacen','sal':'almacen','yerba':'almacen',
     'yerba mate':'almacen','cafe':'almacen','te':'almacen','mate cocido':'almacen','aceite':'almacen',
-    'vinagre':'almacen','lenteja':'almacen','lentejas':'almacen','garbanzo':'almacen','garbanzos':'almacen',
-    'poroto':'almacen','porotos':'almacen','tomate lata':'almacen','pure de tomate':'almacen',
+    'vinagre':'almacen','lenteja':'almacen','garbanzo':'almacen',
+    'poroto':'almacen','tomate lata':'almacen','pure de tomate':'almacen',
     'salsa de tomate':'almacen','caldo':'almacen','caldo en cubos':'almacen','gelatina':'almacen',
-    'avena':'almacen','cereal':'almacen','cereales':'almacen','miel':'almacen','mermelada':'almacen',
+    'avena':'almacen','cereal':'almacen','miel':'almacen','mermelada':'almacen',
     'aceitunas':'almacen','choclo lata':'almacen','arveja lata':'almacen',
     'levadura':'almacen','bicarbonato':'almacen','maicena':'almacen','fecula de maiz':'almacen',
     'tostadas de arroz':'almacen','sopa':'almacen','sopa instantanea':'almacen','choclo en lata':'almacen',
@@ -1067,14 +1071,14 @@
     // Congelados
     'helado':'congelados','papas fritas congeladas':'congelados','verdura congelada':'congelados',
     'nuggets':'congelados','rebozados':'congelados','tarta congelada':'congelados','pizza congelada':'congelados',
-    'medallon':'congelados','medallones':'congelados','empanadas congeladas':'congelados','hielo':'congelados',
+    'medallon':'congelados','empanadas congeladas':'congelados','hielo':'congelados',
 
     // Snacks y dulces
     'galletitas':'snacks','galletas':'snacks','papas fritas':'snacks','papas lays':'snacks','chizitos':'snacks',
-    'chocolate':'snacks','alfajor':'snacks','alfajores':'snacks','caramelos':'snacks','chicles':'snacks',
+    'chocolate':'snacks','alfajor':'snacks','caramelos':'snacks','chicles':'snacks',
     'turron':'snacks','maní':'snacks','mani':'snacks','frutos secos':'snacks','pasas de uva':'snacks',
     'palitos salados':'snacks','conitos':'snacks','barrita de cereal':'snacks','budin ingles':'snacks',
-    'vainillas':'snacks','oblea':'snacks','obleas':'snacks','bombones':'snacks','galletitas de agua':'snacks',
+    'vainillas':'snacks','oblea':'snacks','bombones':'snacks','galletitas de agua':'snacks',
 
     // Limpieza
     'lavandina':'limpieza','detergente':'limpieza','jabon en polvo':'limpieza','suavizante':'limpieza',
@@ -1884,6 +1888,22 @@
     }).join('');
   }
 
+  // Si la receta editada tiene días activos, resincroniza la lista de
+  // compras: saca los ingredientes viejos (una vez por cada día activo) y
+  // vuelve a aplicar los nuevos, así un cambio en la receta se refleja bien
+  // aunque ya esté activada (ingrediente sacado, agregado, o renombrado).
+  function resyncActiveRecipeIngredients(recipeId, oldIngredients, newIngredients) {
+    let activeCount = 0;
+    Object.keys(weeklyPlan).forEach((dayKey) => {
+      (weeklyPlan[dayKey] || []).forEach((entry) => {
+        if (entry.recipeId === recipeId && entry.active) activeCount++;
+      });
+    });
+    if (activeCount === 0) return;
+    for (let i = 0; i < activeCount; i++) removeRecipeFromShoppingList({ ingredients: oldIngredients });
+    for (let i = 0; i < activeCount; i++) applyRecipeToShoppingList({ ingredients: newIngredients });
+  }
+
   function saveRecipe() {
     const name = document.getElementById('recipeNameInput').value.trim();
     if (!name) {
@@ -1895,21 +1915,25 @@
       return;
     }
     const wasNew = !editingRecipeId;
+    const newIngredients = editingRecipeIngredients; // closeRecipeEditor() resetea editingRecipeIngredients, guardamos la referencia antes
     let recipeId;
+    let oldIngredients = null;
     if (editingRecipeId) {
       const r = recipes.find((x) => x.id === editingRecipeId);
+      oldIngredients = r.ingredients;
       r.name = name;
-      r.ingredients = editingRecipeIngredients;
+      r.ingredients = newIngredients;
       recipeId = r.id;
     } else {
       recipeId = uid();
-      recipes.push({ id: recipeId, name, ingredients: editingRecipeIngredients });
+      recipes.push({ id: recipeId, name, ingredients: newIngredients });
     }
     saveRecipesData();
     closeRecipeEditor();
     if (wasNew && pickerDayKey) {
       assignRecipeToDay(pickerDayKey, recipeId);
     } else {
+      if (!wasNew) resyncActiveRecipeIngredients(recipeId, oldIngredients, newIngredients);
       renderRecipePickerList();
       renderMenu();
     }
