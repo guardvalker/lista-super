@@ -581,16 +581,65 @@
     margin: 18px 0 8px 0;
   }
   .week-heading:first-child { margin-top: 0; }
-  .day-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 12px 12px 10px 12px;
+
+  /* módulos de calendario: uno por día, coloreados, sin contenido a la vista */
+  .day-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
     margin-bottom: 10px;
   }
-  .day-name {
-    font-size: 14px;
+  .day-cell {
+    aspect-ratio: 1;
+    background: color-mix(in srgb, var(--day-color) 14%, var(--card));
+    border: 1px solid color-mix(in srgb, var(--day-color) 38%, var(--border));
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    color: var(--text);
+    font-family: inherit;
+    padding: 2px;
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+  }
+  .day-cell:active { transform: scale(0.94); }
+  .day-cell.selected {
+    background: var(--day-color);
+    border-color: var(--day-color);
+    color: var(--on-accent);
+  }
+  .day-cell-label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .day-cell-count {
+    font-size: 10px;
     font-weight: 700;
+    background: var(--day-color);
+    color: var(--on-accent);
+    border-radius: 20px;
+    padding: 1px 6px;
+    line-height: 1.4;
+  }
+  .day-cell.selected .day-cell-count { background: rgba(255,255,255,0.32); }
+
+  /* panel del día seleccionado: se abre debajo de la grilla de su semana */
+  .day-detail {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--day-color, var(--border));
+    border-radius: 14px;
+    padding: 12px 12px 10px 12px;
+    margin-bottom: 14px;
+  }
+  .day-detail-name {
+    font-size: 15px;
+    font-weight: 800;
     margin-bottom: 8px;
     display: block;
   }
@@ -1031,8 +1080,11 @@
   const RECIPES_KEY = 'lista_super_recipes';
   const WEEKLY_PLAN_KEY = 'lista_super_weekly_plan';
   const WEEKDAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  const WEEKDAY_ABBR = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const DAY_COLORS = ['red', 'peach', 'yellow', 'green', 'sky', 'mauve', 'pink']; // uno por día de semana, vía --ctp-*
   let recipes = []; // [{ id, name, ingredients: [{id, text, category}] }]
   let weeklyPlan = {}; // { 'w1-0': [{id, recipeId, active}], ... }
+  let selectedDayKey = null; // día abierto en el calendario (null = todos cerrados)
   let pickerDayKey = null; // día para el que se está eligiendo receta (null = modo biblioteca)
   let editingRecipeId = null; // id de la receta que se está editando (null = nueva)
   let editingRecipeIngredients = []; // ingredientes de la receta que se está editando
@@ -1417,6 +1469,12 @@
     document.getElementById('menuOverlay').classList.remove('show');
   }
 
+  function dayColorVar(dIdx) {
+    return `var(--ctp-${DAY_COLORS[dIdx]})`;
+  }
+
+  // Grilla de módulos por semana; al tocar un día se abre (o cierra, si ya
+  // estaba abierto) un panel debajo con sus recetas. Solo un día a la vez.
   function renderMenu() {
     const body = document.getElementById('menuBody');
     body.innerHTML = '';
@@ -1426,20 +1484,40 @@
       heading.textContent = `Semana ${week}`;
       body.appendChild(heading);
 
+      const grid = document.createElement('div');
+      grid.className = 'day-grid';
       WEEKDAYS.forEach((dayName, dIdx) => {
         const dayKey = `w${week}-${dIdx}`;
         const entries = weeklyPlan[dayKey] || [];
-        const card = document.createElement('div');
-        card.className = 'day-card';
-        card.innerHTML = `
-          <span class="day-name">${dayName}</span>
-          <div class="day-recipes">
-            ${entries.map((entry) => renderDayRecipeChip(entry, dayKey)).join('') || '<div class="day-empty">Sin recetas para este día</div>'}
-          </div>
-          <button class="day-add-btn" type="button" data-action="add-recipe-to-day" data-day-key="${dayKey}">+ Agregar receta</button>
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'day-cell' + (selectedDayKey === dayKey ? ' selected' : '');
+        cell.dataset.action = 'toggle-day';
+        cell.dataset.dayKey = dayKey;
+        cell.style.setProperty('--day-color', dayColorVar(dIdx));
+        cell.innerHTML = `
+          <span class="day-cell-label">${WEEKDAY_ABBR[dIdx]}</span>
+          ${entries.length ? `<span class="day-cell-count">${entries.length}</span>` : ''}
         `;
-        body.appendChild(card);
+        grid.appendChild(cell);
       });
+      body.appendChild(grid);
+
+      if (selectedDayKey && selectedDayKey.startsWith(`w${week}-`)) {
+        const dIdx = parseInt(selectedDayKey.split('-')[1], 10);
+        const entries = weeklyPlan[selectedDayKey] || [];
+        const detail = document.createElement('div');
+        detail.className = 'day-detail';
+        detail.style.setProperty('--day-color', dayColorVar(dIdx));
+        detail.innerHTML = `
+          <span class="day-detail-name">${WEEKDAYS[dIdx]} · Semana ${week}</span>
+          <div class="day-recipes">
+            ${entries.map((entry) => renderDayRecipeChip(entry, selectedDayKey)).join('') || '<div class="day-empty">Sin recetas para este día</div>'}
+          </div>
+          <button class="day-add-btn" type="button" data-action="add-recipe-to-day" data-day-key="${selectedDayKey}">+ Agregar receta</button>
+        `;
+        body.appendChild(detail);
+      }
     });
   }
 
@@ -1783,6 +1861,9 @@
     } else if (action === 'select-edit-category') {
       editingCategory = target.dataset.catId;
       renderEditGrid();
+    } else if (action === 'toggle-day') {
+      selectedDayKey = selectedDayKey === target.dataset.dayKey ? null : target.dataset.dayKey;
+      renderMenu();
     } else if (action === 'add-recipe-to-day') {
       openRecipePicker(target.dataset.dayKey);
     } else if (action === 'toggle-recipe-active') {
