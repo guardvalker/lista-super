@@ -570,6 +570,7 @@
   .hidden-file-input { display: none; }
 
   /* ---- Pantalla Recetas: índice alfabético ---- */
+  .recetas-toolbar { padding: 12px 16px 0 16px; margin-bottom: 0; }
   .recetas-body-row {
     flex: 1;
     display: flex;
@@ -1111,6 +1112,10 @@
       <div class="screen-title">Recetas</div>
       <div class="screen-header-spacer"></div>
     </div>
+    <div class="picker-actions recetas-toolbar">
+      <button class="toggle-btn" id="recetasExportBtn" type="button">⬇️ Exportar</button>
+      <button class="toggle-btn" id="recetasImportBtn" type="button">⬆️ Importar</button>
+    </div>
     <div class="recetas-body-row">
       <div class="recetas-list" id="recetasList"></div>
       <div class="alpha-index" id="alphaIndex"></div>
@@ -1182,7 +1187,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.1.1';
+  const APP_VERSION = '2.2.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1229,6 +1234,10 @@
     ],
     '2.1.1': [
       'Arreglamos exportar/importar recetas: ahora los pasos armados (con sus ingredientes, procesos y tiempos) viajan junto con la receta en vez de perderse.'
+    ],
+    '2.2.0': [
+      'Separamos bien los conceptos: en el Menú Semanal ahora se habla de "menús" (agregar menú, sin menús para este día), y "receta" queda reservado para la ficha con ingredientes y pasos que armás en la sección Recetas.',
+      'Agregamos exportar/importar también directo desde la pantalla Recetas (antes solo estaba adentro del Menú Semanal).'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1990,9 +1999,9 @@
         detail.innerHTML = `
           <span class="day-detail-name">${WEEKDAYS[dIdx]} · Semana ${week}</span>
           <div class="day-recipes">
-            ${entries.map((entry) => renderDayRecipeChip(entry, selectedDayKey)).join('') || '<div class="day-empty">Sin recetas para este día</div>'}
+            ${entries.map((entry) => renderDayRecipeChip(entry, selectedDayKey)).join('') || '<div class="day-empty">Sin menús para este día</div>'}
           </div>
-          <button class="day-add-btn" type="button" data-action="add-recipe-to-day" data-day-key="${selectedDayKey}">+ Agregar receta</button>
+          <button class="day-add-btn" type="button" data-action="add-recipe-to-day" data-day-key="${selectedDayKey}">+ Agregar menú</button>
         `;
         body.appendChild(detail);
       }
@@ -2100,7 +2109,7 @@
   // modo "Menú" (tocar una fila la abre para editar).
   function openRecipePicker(dayKey) {
     pickerDayKey = dayKey || null;
-    document.getElementById('recipePickerTitle').textContent = pickerDayKey ? 'Elegí una receta' : 'Menú';
+    document.getElementById('recipePickerTitle').textContent = pickerDayKey ? 'Elegí un menú' : 'Menú';
     renderRecipePickerList();
     document.getElementById('recipePickerOverlay').classList.add('show');
   }
@@ -2307,12 +2316,17 @@
     saveRecipesData();
     renderRecipePickerList();
     renderMenu();
+    if (document.getElementById('recetasOverlay').classList.contains('show')) renderRecetasList();
     alert(`Se importaron ${addedCount} receta${addedCount !== 1 ? 's' : ''}.`);
   }
 
   document.getElementById('exportRecipesBtn').addEventListener('click', exportRecipes);
+  document.getElementById('recetasExportBtn').addEventListener('click', exportRecipes);
 
   document.getElementById('importRecipesBtn').addEventListener('click', () => {
+    document.getElementById('importRecipesFile').click();
+  });
+  document.getElementById('recetasImportBtn').addEventListener('click', () => {
     document.getElementById('importRecipesFile').click();
   });
 
