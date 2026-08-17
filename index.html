@@ -1182,7 +1182,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.1.0';
+  const APP_VERSION = '2.1.1';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1226,6 +1226,9 @@
       'Rediseñamos cómo se arman los pasos de una receta: ahora podés elegir varios ingredientes juntos y armarles un paso en común (ej: "mezclar fideos y salsa"), y un mismo ingrediente puede aparecer en varios pasos distintos (ej: "hervir fideos" en el paso 1 y "mezclar fideos" en el paso 3).',
       'Los ingredientes ahora se ven en módulos parejos (ícono + nombre) en vez de una lista, y cada paso armado se puede editar o borrar desde "Pasos armados".',
       'El resumen quedó más claro: cada paso separado con su propio título y viñetas, en vez de todo el texto junto.'
+    ],
+    '2.1.1': [
+      'Arreglamos exportar/importar recetas: ahora los pasos armados (con sus ingredientes, procesos y tiempos) viajan junto con la receta en vez de perderse.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2245,11 +2248,18 @@
       return;
     }
 
-    // A cada receta importada le tocan ids nuevos (para no chocar con las que
-    // ya existen); guardamos el mapeo viejo->nuevo para poder remapear las
-    // referencias de subRecipeIds dentro del mismo lote importado.
-    const idMap = new Map();
-    validImports.forEach((r) => { if (r.id) idMap.set(r.id, uid()); });
+    // A cada receta y cada ingrediente importado le tocan ids nuevos (para no
+    // chocar con lo que ya existe); guardamos los mapeos viejo->nuevo para
+    // remapear subRecipeIds y las referencias a ingredientes que usan los
+    // pasos armados (instructionBlocks) — estos últimos pueden apuntar a
+    // ingredientes de cualquier receta del mismo lote, incluidas subrecetas,
+    // por eso el mapeo de ingredientes es global y no por receta.
+    const recipeIdMap = new Map();
+    const ingredientIdMap = new Map();
+    validImports.forEach((r) => {
+      if (r.id) recipeIdMap.set(r.id, uid());
+      r.ingredients.forEach((ing) => { if (ing && ing.id) ingredientIdMap.set(ing.id, uid()); });
+    });
 
     const takenNames = new Set(recipes.map((r) => normalize(r.name)));
     let addedCount = 0;
@@ -2260,17 +2270,38 @@
       const ingredients = r.ingredients
         .filter((ing) => ing && typeof ing.text === 'string' && ing.text.trim())
         .map((ing) => ({
-          id: uid(),
+          id: (ing.id && ingredientIdMap.get(ing.id)) || uid(),
           text: ing.text.trim(),
           category: (ing.category && catById[ing.category]) ? ing.category : 'otros'
         }));
-      // solo se conservan referencias a subrecetas que también vinieron en
-      // este mismo archivo; una referencia a un id de otro backup no se puede
-      // resolver, así que se descarta en vez de dejarla colgada.
+      // solo se conservan referencias (a subrecetas o a ingredientes de pasos
+      // armados) que también vinieron en este mismo archivo; lo que apunta a
+      // un id de otro backup no se puede resolver, así que se descarta en vez
+      // de dejarlo colgado.
       const subRecipeIds = Array.isArray(r.subRecipeIds)
-        ? r.subRecipeIds.map((oldSubId) => idMap.get(oldSubId)).filter(Boolean)
+        ? r.subRecipeIds.map((oldSubId) => recipeIdMap.get(oldSubId)).filter(Boolean)
         : [];
-      recipes.push({ id: idMap.get(r.id) || uid(), name, ingredients, subRecipeIds });
+      const instructionBlocks = Array.isArray(r.instructionBlocks)
+        ? r.instructionBlocks.map((block) => {
+            const items = (Array.isArray(block.items) ? block.items : [])
+              .map((it) => ({
+                ingredientId: ingredientIdMap.get(it.ingredientId),
+                quantityAmount: it.quantityAmount != null ? it.quantityAmount : null,
+                quantityUnit: it.quantityUnit || '',
+              }))
+              .filter((it) => it.ingredientId);
+            if (items.length === 0) return null;
+            return {
+              id: uid(),
+              stepNumber: Number(block.stepNumber) || 1,
+              items,
+              actions: Array.isArray(block.actions) ? block.actions.filter((a) => actionById[a]) : [],
+              timeValue: block.timeValue != null ? block.timeValue : null,
+              timeUnit: block.timeUnit === 'h' ? 'h' : 'min',
+            };
+          }).filter(Boolean)
+        : [];
+      recipes.push({ id: recipeIdMap.get(r.id) || uid(), name, ingredients, subRecipeIds, instructionBlocks });
       addedCount++;
     });
     saveRecipesData();
