@@ -430,7 +430,10 @@
     cursor: pointer;
     padding: 4px 6px;
     line-height: 1;
+    display: inline-flex;
+    align-items: center;
   }
+  .edit-btn svg { width: 15px; height: 15px; }
   .edit-btn:active { color: var(--accent); }
   .delete-btn {
     background: none;
@@ -621,25 +624,76 @@
   }
   .alpha-index-letter:active { background: var(--accent-dim); color: var(--accent); }
 
-  /* ---- Detalle de receta: ingredientes tocables + resumen por pasos ---- */
-  .ingredient-detail-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  /* ---- Detalle de receta: grilla de ingredientes seleccionables ---- */
+  .subtitle-hint { font-weight: 400; text-transform: none; letter-spacing: normal; color: var(--text-dim); }
+  .ingredient-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .ingredient-module {
+    aspect-ratio: 1;
     background: var(--card);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--cat-color, var(--border));
+    border-top: 3px solid var(--cat-color, var(--border));
     border-radius: 12px;
-    padding: 11px 12px;
-    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px;
     cursor: pointer;
+    text-align: center;
   }
-  .ingredient-detail-icon { font-size: 15px; }
-  .ingredient-detail-body { flex: 1; display: flex; flex-direction: column; line-height: 1.35; min-width: 0; }
-  .ingredient-detail-name { font-size: 14.5px; font-weight: 600; }
-  .ingredient-detail-meta { font-size: 11.5px; color: var(--text-dim); }
-  .ingredient-detail-meta.set { color: var(--accent); }
-  .ingredient-detail-chevron { color: var(--text-dim); font-size: 13px; }
+  .ingredient-module-icon { font-size: 20px; }
+  .ingredient-module-name { font-size: 12px; font-weight: 600; line-height: 1.25; word-break: break-word; }
+  .ingredient-module-badge {
+    font-size: 9.5px;
+    font-weight: 800;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border-radius: 20px;
+    padding: 1px 6px;
+  }
+  .ingredient-module.selected {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+  }
+  #buildStepBtn { margin-bottom: 18px; }
+  #buildStepBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* pasos ya armados: fila con resumen corto + editar/borrar */
+  .instruction-block-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 8px 10px 12px;
+    margin-bottom: 8px;
+  }
+  .instruction-block-body { flex: 1; display: flex; flex-direction: column; line-height: 1.4; min-width: 0; }
+  .instruction-block-step { font-size: 11px; font-weight: 800; color: var(--accent-2); text-transform: uppercase; letter-spacing: 0.3px; }
+  .instruction-block-text { font-size: 13.5px; }
+  .instruction-blocks-empty { font-size: 12.5px; color: var(--text-dim); margin-bottom: 18px; }
+
+  /* modal de configurar paso: ingredientes elegidos con cantidad opcional */
+  .step-config-items { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .step-item-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+  }
+  .step-item-name { flex: 1; font-size: 13.5px; font-weight: 600; min-width: 0; }
+  .step-item-qty { width: 64px; flex: none; }
+  .step-item-unit { width: 64px; flex: none; }
   .qty-unit-input { max-width: 120px; flex: none; }
   .unit-toggle {
     display: flex;
@@ -659,15 +713,35 @@
     cursor: pointer;
   }
   .unit-toggle-btn.active { background: var(--accent-dim); color: var(--accent); }
-  #recipeStepsSummary {
+  #recipeStepsSummary { margin-bottom: 14px; }
+  .summary-step-group {
     background: var(--card-2);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 12px 14px;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
+  }
+  .summary-step-heading {
+    font-size: 11.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .summary-step-line {
     font-size: 13.5px;
     line-height: 1.6;
-    white-space: pre-wrap;
+    padding-left: 14px;
+    position: relative;
+    margin-bottom: 4px;
+  }
+  .summary-step-line:last-child { margin-bottom: 0; }
+  .summary-step-line::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: var(--accent-2);
   }
   .step-summary-empty { color: var(--text-dim); font-size: 13px; }
   #recipeIngRow { margin-bottom: 12px; }
@@ -1052,36 +1126,38 @@
       <button class="theme-toggle" id="recipeDetailEditBtn" type="button" aria-label="Editar receta"></button>
     </div>
     <div class="screen-body" id="recipeDetailBody">
-      <div class="modal-subtitle">Ingredientes</div>
-      <div id="recipeDetailIngredients"></div>
-      <div class="modal-subtitle">Resumen por pasos</div>
+      <div class="modal-subtitle">Ingredientes <span class="subtitle-hint">(tocá para elegir, podés elegir varios)</span></div>
+      <div id="recipeDetailIngredients" class="ingredient-grid"></div>
+      <button class="modal-save-btn" id="buildStepBtn" type="button" disabled>Armar paso con ingredientes elegidos</button>
+
+      <div class="modal-subtitle">Pasos armados</div>
+      <div id="instructionBlocksList"></div>
+
+      <div class="modal-subtitle">Resumen</div>
       <div id="recipeStepsSummary"></div>
       <button class="toggle-btn" id="copyStepsSummaryBtn" type="button">📋 Copiar resumen</button>
     </div>
   </div>
 </div>
 
-<div class="modal-overlay" id="ingredientConfigOverlay">
+<div class="modal-overlay" id="stepConfigOverlay">
   <div class="modal">
-    <div class="modal-title" id="ingredientConfigTitle">Ingrediente</div>
-    <div class="modal-subtitle">Cantidad</div>
-    <div class="add-row">
-      <input type="number" step="0.01" id="ingQuantityAmount" class="text-input" placeholder="Cantidad (ej: 0.5, 700)">
-      <input type="text" id="ingQuantityUnit" class="text-input qty-unit-input" placeholder="Unidad (g, ml...)">
-    </div>
-    <div class="modal-subtitle">Proceso (elegí una o varias)</div>
-    <div class="modal-grid" id="ingActionsGrid"></div>
+    <div class="modal-title" id="stepConfigTitle">Configurar paso</div>
+    <div class="modal-subtitle">Ingredientes de este paso</div>
+    <div id="stepConfigItemsList" class="step-config-items"></div>
+    <div class="modal-subtitle">Proceso (elegí uno o varios)</div>
+    <div class="modal-grid" id="stepActionsGrid"></div>
     <div class="modal-subtitle">Tiempo</div>
     <div class="add-row">
-      <input type="number" step="1" min="0" id="ingTimeValue" class="text-input" placeholder="Tiempo">
-      <div class="unit-toggle" id="ingTimeUnitToggle">
+      <input type="number" step="1" min="0" id="stepTimeValue" class="text-input" placeholder="Tiempo">
+      <div class="unit-toggle" id="stepTimeUnitToggle">
         <button type="button" class="unit-toggle-btn active" data-unit="min">min</button>
         <button type="button" class="unit-toggle-btn" data-unit="h">h</button>
       </div>
     </div>
     <div class="modal-subtitle">Paso de la receta</div>
-    <input type="number" step="1" min="1" id="ingStepNumber" class="modal-input" placeholder="Número de paso (ej: 1)">
-    <button class="modal-save-btn" id="ingredientConfigSaveBtn" type="button">Guardar</button>
+    <input type="number" step="1" min="1" id="stepNumberInput" class="modal-input" placeholder="Número de paso (ej: 1)">
+    <button class="modal-save-btn" id="stepConfigSaveBtn" type="button">Guardar paso</button>
   </div>
 </div>
 
@@ -1106,7 +1182,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.0.0';
+  const APP_VERSION = '2.1.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1145,6 +1221,11 @@
       'Resumen automático por pasos al final de cada receta, con botón para copiarlo y pegarlo donde quieras.',
       'El botón "Mis Recetas" de adentro del calendario ahora se llama "Menú" (sigue siendo el acceso rápido para asignar una receta a un día).',
       'Reemplazamos los emoji de día/noche y calendario por iconos propios de línea, y agregamos uno nuevo para "Recetas".'
+    ],
+    '2.1.0': [
+      'Rediseñamos cómo se arman los pasos de una receta: ahora podés elegir varios ingredientes juntos y armarles un paso en común (ej: "mezclar fideos y salsa"), y un mismo ingrediente puede aparecer en varios pasos distintos (ej: "hervir fideos" en el paso 1 y "mezclar fideos" en el paso 3).',
+      'Los ingredientes ahora se ven en módulos parejos (ícono + nombre) en vez de una lista, y cada paso armado se puede editar o borrar desde "Pasos armados".',
+      'El resumen quedó más claro: cada paso separado con su propio título y viñetas, en vez de todo el texto junto.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1383,9 +1464,10 @@
   ];
   const actionById = Object.fromEntries(PROCESS_ACTIONS.map((a) => [a.id, a]));
   let openRecipeDetailId = null; // id de la receta abierta en la pantalla de detalle
-  let configuringRecipeId = null; // receta dueña del ingrediente que se está configurando
-  let configuringIngredientId = null; // ingrediente que se está configurando
-  let configuringActions = []; // acciones elegidas (working copy mientras el modal está abierto)
+  let selectedIngredientIds = []; // ingredientes tocados en la grilla, esperando "armar paso"
+  let configuringBlockId = null; // id del paso que se está editando (null = paso nuevo)
+  let configuringBlockIngredientIds = []; // ingredientes del paso que se está armando/editando
+  let configuringBlockActions = []; // acciones elegidas (working copy mientras el modal está abierto)
 
   function load() {
     try {
@@ -2270,6 +2352,7 @@
     const recipe = recipes.find((r) => r.id === recipeId);
     if (!recipe) return;
     document.getElementById('recipeDetailTitle').textContent = recipe.name;
+    selectedIngredientIds = [];
     renderRecipeDetail();
     document.getElementById('recipeDetailOverlay').classList.add('show');
   }
@@ -2277,160 +2360,252 @@
   function closeRecipeDetail() {
     document.getElementById('recipeDetailOverlay').classList.remove('show');
     openRecipeDetailId = null;
-  }
-
-  function formatIngredientMeta(ing) {
-    const parts = [];
-    if (ing.quantityAmount != null && ing.quantityAmount !== '') {
-      parts.push(`${ing.quantityAmount}${ing.quantityUnit ? ' ' + ing.quantityUnit : ''}`);
-    }
-    if (ing.actions && ing.actions.length) {
-      parts.push(ing.actions.map((id) => actionById[id] && actionById[id].label.toLowerCase()).filter(Boolean).join(', '));
-    }
-    if (ing.timeValue != null && ing.timeValue !== '') {
-      parts.push(`${ing.timeValue} ${ing.timeUnit === 'h' ? 'h' : 'min'}`);
-    }
-    if (ing.step != null && ing.step !== '') {
-      parts.push(`paso ${ing.step}`);
-    }
-    return parts;
+    selectedIngredientIds = [];
   }
 
   function renderRecipeDetail() {
     const recipe = recipes.find((r) => r.id === openRecipeDetailId);
     if (!recipe) return;
-    const box = document.getElementById('recipeDetailIngredients');
+    renderIngredientGrid();
+    renderInstructionBlocksList();
+    renderStepsSummary();
+  }
+
+  function renderIngredientGrid() {
+    const recipe = recipes.find((r) => r.id === openRecipeDetailId);
+    if (!recipe) return;
     const effective = getEffectiveIngredients(recipe);
+    const blocks = recipe.instructionBlocks || [];
+    const box = document.getElementById('recipeDetailIngredients');
     box.innerHTML = effective.map((ing) => {
       const cat = catById[ing.category] || catById['otros'];
-      const metaParts = formatIngredientMeta(ing);
-      const isSet = metaParts.length > 0;
-      return `<div class="ingredient-detail-row" style="--cat-color:${catColorVar(cat)}" data-action="open-ingredient-config" data-recipe-id="${recipe.id}" data-ing-id="${ing.id}">
-        <span class="ingredient-detail-icon">${cat.icon}</span>
-        <div class="ingredient-detail-body">
-          <span class="ingredient-detail-name">${escapeHtml(ing.text)}</span>
-          <span class="ingredient-detail-meta${isSet ? ' set' : ''}">${isSet ? metaParts.join(' · ') : 'Tocá para configurar'}</span>
-        </div>
-        <span class="ingredient-detail-chevron">›</span>
+      const usedInCount = blocks.filter((b) => b.items.some((it) => it.ingredientId === ing.id)).length;
+      return `<div class="ingredient-module${selectedIngredientIds.includes(ing.id) ? ' selected' : ''}" style="--cat-color:${catColorVar(cat)}" data-action="toggle-ingredient-selection" data-ing-id="${ing.id}">
+        <span class="ingredient-module-icon">${cat.icon}</span>
+        <span class="ingredient-module-name">${escapeHtml(ing.text)}</span>
+        ${usedInCount > 0 ? `<span class="ingredient-module-badge">${usedInCount} paso${usedInCount !== 1 ? 's' : ''}</span>` : ''}
       </div>`;
     }).join('');
-    renderStepsSummary();
+    document.getElementById('buildStepBtn').disabled = selectedIngredientIds.length === 0;
+    document.getElementById('buildStepBtn').textContent = selectedIngredientIds.length
+      ? `Armar paso con ${selectedIngredientIds.length} ingrediente${selectedIngredientIds.length !== 1 ? 's' : ''}`
+      : 'Armar paso con ingredientes elegidos';
+  }
+
+  function renderInstructionBlocksList() {
+    const recipe = recipes.find((r) => r.id === openRecipeDetailId);
+    if (!recipe) return;
+    const box = document.getElementById('instructionBlocksList');
+    const blocks = recipe.instructionBlocks || [];
+    if (blocks.length === 0) {
+      box.innerHTML = '<div class="instruction-blocks-empty">Todavía no armaste ningún paso. Elegí ingredientes arriba y tocá "Armar paso".</div>';
+      return;
+    }
+    const effective = getEffectiveIngredients(recipe);
+    const sorted = [...blocks].sort((a, b) => (a.stepNumber || 0) - (b.stepNumber || 0));
+    box.innerHTML = sorted.map((block) => {
+      const names = block.items
+        .map((it) => effective.find((i) => i.id === it.ingredientId))
+        .filter(Boolean)
+        .map((i) => i.text)
+        .join(', ');
+      const actionsLabel = (block.actions || []).map((id) => actionById[id] && actionById[id].label.toLowerCase()).filter(Boolean).join(', ');
+      const timeLabel = (block.timeValue != null && block.timeValue !== '') ? ` · ${block.timeValue} ${block.timeUnit === 'h' ? 'h' : 'min'}` : '';
+      return `<div class="instruction-block-row">
+        <div class="instruction-block-body">
+          <span class="instruction-block-step">Paso ${block.stepNumber}</span>
+          <span class="instruction-block-text">${escapeHtml(names)}${actionsLabel ? ' — ' + escapeHtml(actionsLabel) : ''}${timeLabel}</span>
+        </div>
+        <button class="edit-btn" type="button" data-action="edit-instruction-block" data-block-id="${block.id}">${ICONS.edit}</button>
+        <button class="delete-btn" type="button" data-action="delete-instruction-block" data-block-id="${block.id}">✕</button>
+      </div>`;
+    }).join('');
   }
 
   function buildStepsSummaryLines(recipe) {
     const effective = getEffectiveIngredients(recipe);
-    const withStep = effective.filter((i) => i.step != null && i.step !== '');
+    const blocks = recipe.instructionBlocks || [];
     const steps = new Map();
-    withStep.forEach((ing) => {
-      const s = Number(ing.step);
+    blocks.forEach((block) => {
+      const s = Number(block.stepNumber) || 0;
       if (!steps.has(s)) steps.set(s, []);
-      steps.get(s).push(ing);
+      steps.get(s).push(block);
     });
     const stepNumbers = [...steps.keys()].sort((a, b) => a - b);
-    return stepNumbers.map((s) => {
-      const parts = steps.get(s).map((ing) => {
-        const qty = (ing.quantityAmount != null && ing.quantityAmount !== '')
-          ? `${ing.quantityAmount}${ing.quantityUnit ? ' ' + ing.quantityUnit : ''} de `
-          : '';
-        const actionsLabel = (ing.actions || []).map((id) => actionById[id] && actionById[id].label.toLowerCase()).filter(Boolean).join(', ');
-        const timeLabel = (ing.timeValue != null && ing.timeValue !== '') ? ` (${ing.timeValue} ${ing.timeUnit === 'h' ? 'h' : 'min'})` : '';
-        return `${qty}${ing.text}${actionsLabel ? ' — ' + actionsLabel : ''}${timeLabel}`;
-      });
-      return `Paso ${s}: ${parts.join('; ')}.`;
-    });
+    return stepNumbers.map((s) => ({
+      step: s,
+      lines: steps.get(s).map((block) => {
+        const itemTexts = block.items
+          .map((it) => {
+            const ing = effective.find((i) => i.id === it.ingredientId);
+            if (!ing) return null;
+            const qty = (it.quantityAmount != null && it.quantityAmount !== '')
+              ? `${it.quantityAmount}${it.quantityUnit ? ' ' + it.quantityUnit : ''} de `
+              : '';
+            return `${qty}${ing.text}`;
+          })
+          .filter(Boolean)
+          .join(', ');
+        const actionsLabel = (block.actions || []).map((id) => actionById[id] && actionById[id].label.toLowerCase()).filter(Boolean).join(', ');
+        const timeLabel = (block.timeValue != null && block.timeValue !== '') ? ` (${block.timeValue} ${block.timeUnit === 'h' ? 'h' : 'min'})` : '';
+        return `${itemTexts}${actionsLabel ? ' — ' + actionsLabel : ''}${timeLabel}`;
+      }),
+    }));
   }
 
   function renderStepsSummary() {
     const recipe = recipes.find((r) => r.id === openRecipeDetailId);
     const box = document.getElementById('recipeStepsSummary');
     if (!recipe) return;
-    const lines = buildStepsSummaryLines(recipe);
-    box.innerHTML = lines.length
-      ? lines.map((l) => escapeHtml(l)).join('\n')
-      : '<span class="step-summary-empty">Configurá cantidad, proceso, tiempo y paso en algún ingrediente para armar el resumen.</span>';
+    const groups = buildStepsSummaryLines(recipe);
+    if (groups.length === 0) {
+      box.innerHTML = '<span class="step-summary-empty">Armá algún paso arriba para ver el resumen acá.</span>';
+      return;
+    }
+    box.innerHTML = groups.map((g) => `
+      <div class="summary-step-group">
+        <div class="summary-step-heading">Paso ${g.step}</div>
+        ${g.lines.map((l) => `<div class="summary-step-line">${escapeHtml(l)}</div>`).join('')}
+      </div>
+    `).join('');
   }
 
-  // ---- Modal de configuración de ingrediente (cantidad, proceso, tiempo, paso) ----
-  function openIngredientConfig(recipeId, ingId) {
-    const recipe = recipes.find((r) => r.id === recipeId);
+  // ---- Selección de ingredientes + modal de armar/editar paso ----
+  function toggleIngredientSelection(ingId) {
+    if (selectedIngredientIds.includes(ingId)) {
+      selectedIngredientIds = selectedIngredientIds.filter((id) => id !== ingId);
+    } else {
+      selectedIngredientIds.push(ingId);
+    }
+    renderIngredientGrid();
+  }
+
+  function nextStepNumber(recipe) {
+    const blocks = recipe.instructionBlocks || [];
+    if (blocks.length === 0) return 1;
+    return Math.max(...blocks.map((b) => b.stepNumber || 0)) + 1;
+  }
+
+  // blockId null = armar paso nuevo con los ingredientes seleccionados;
+  // blockId presente = editar ese paso (mismos ingredientes, se puede
+  // cambiar proceso/tiempo/número).
+  function openStepConfig(blockId) {
+    const recipe = recipes.find((r) => r.id === openRecipeDetailId);
     if (!recipe) return;
-    const ing = getEffectiveIngredients(recipe).find((i) => i.id === ingId);
-    if (!ing) return;
-    configuringRecipeId = recipeId;
-    configuringIngredientId = ingId;
-    configuringActions = [...(ing.actions || [])];
-    document.getElementById('ingredientConfigTitle').textContent = ing.text.charAt(0).toUpperCase() + ing.text.slice(1);
-    document.getElementById('ingQuantityAmount').value = ing.quantityAmount != null ? ing.quantityAmount : '';
-    document.getElementById('ingQuantityUnit').value = ing.quantityUnit || '';
-    document.getElementById('ingTimeValue').value = ing.timeValue != null ? ing.timeValue : '';
-    document.getElementById('ingStepNumber').value = ing.step != null ? ing.step : '';
-    setTimeUnitToggle(ing.timeUnit === 'h' ? 'h' : 'min');
-    renderIngredientActionsGrid();
-    const overlay = document.getElementById('ingredientConfigOverlay');
+    const effective = getEffectiveIngredients(recipe);
+    let ingIds, actions, timeValue, timeUnit, stepNumber;
+
+    if (blockId) {
+      const block = (recipe.instructionBlocks || []).find((b) => b.id === blockId);
+      if (!block) return;
+      ingIds = block.items.map((it) => it.ingredientId);
+      actions = [...(block.actions || [])];
+      timeValue = block.timeValue;
+      timeUnit = block.timeUnit;
+      stepNumber = block.stepNumber;
+    } else {
+      if (selectedIngredientIds.length === 0) return;
+      ingIds = [...selectedIngredientIds];
+      actions = [];
+      timeValue = null;
+      timeUnit = 'min';
+      stepNumber = nextStepNumber(recipe);
+    }
+
+    configuringBlockId = blockId || null;
+    configuringBlockIngredientIds = ingIds;
+    configuringBlockActions = actions;
+
+    document.getElementById('stepConfigTitle').textContent = blockId ? 'Editar paso' : 'Configurar paso';
+    document.getElementById('stepTimeValue').value = timeValue != null ? timeValue : '';
+    document.getElementById('stepNumberInput').value = stepNumber != null ? stepNumber : '';
+    setStepTimeUnitToggle(timeUnit === 'h' ? 'h' : 'min');
+
+    const itemsBox = document.getElementById('stepConfigItemsList');
+    const block = blockId ? (recipe.instructionBlocks || []).find((b) => b.id === blockId) : null;
+    itemsBox.innerHTML = ingIds.map((ingId) => {
+      const ing = effective.find((i) => i.id === ingId);
+      const existingItem = block ? block.items.find((it) => it.ingredientId === ingId) : null;
+      return `<div class="step-item-row">
+        <span class="step-item-name">${ing ? escapeHtml(ing.text) : '(ingrediente no encontrado)'}</span>
+        <input type="number" step="0.01" class="text-input step-item-qty" data-ing-id="${ingId}" placeholder="Cant." value="${existingItem && existingItem.quantityAmount != null ? existingItem.quantityAmount : ''}">
+        <input type="text" class="text-input step-item-unit" data-ing-id="${ingId}" placeholder="Unidad" value="${existingItem && existingItem.quantityUnit ? escapeHtml(existingItem.quantityUnit) : ''}">
+      </div>`;
+    }).join('');
+
+    renderStepActionsGrid();
+    const overlay = document.getElementById('stepConfigOverlay');
     document.body.appendChild(overlay);
     overlay.classList.add('show');
   }
 
-  function closeIngredientConfig() {
-    document.getElementById('ingredientConfigOverlay').classList.remove('show');
-    configuringRecipeId = null;
-    configuringIngredientId = null;
-    configuringActions = [];
+  function closeStepConfig() {
+    document.getElementById('stepConfigOverlay').classList.remove('show');
+    configuringBlockId = null;
+    configuringBlockIngredientIds = [];
+    configuringBlockActions = [];
   }
 
-  function setTimeUnitToggle(unit) {
-    document.querySelectorAll('#ingTimeUnitToggle .unit-toggle-btn').forEach((btn) => {
+  function setStepTimeUnitToggle(unit) {
+    document.querySelectorAll('#stepTimeUnitToggle .unit-toggle-btn').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.unit === unit);
     });
   }
 
-  function renderIngredientActionsGrid() {
-    const grid = document.getElementById('ingActionsGrid');
+  function renderStepActionsGrid() {
+    const grid = document.getElementById('stepActionsGrid');
     grid.innerHTML = PROCESS_ACTIONS.map((a) => `
-      <button type="button" class="modal-cat-btn${configuringActions.includes(a.id) ? ' selected' : ''}" data-action="toggle-ingredient-action" data-action-id="${a.id}">
+      <button type="button" class="modal-cat-btn${configuringBlockActions.includes(a.id) ? ' selected' : ''}" data-action="toggle-step-action" data-action-id="${a.id}">
         <span>${a.label}</span>
       </button>
     `).join('');
   }
 
-  // Encuentra el ingrediente por id en la receta O en cualquiera de sus
-  // subrecetas (recursivo) — la config se guarda donde el ingrediente vive
-  // de verdad, así una subreceta compartida queda consistente para todos.
-  function findIngredientOwner(recipe, ingId, visited = new Set()) {
-    if (!recipe || visited.has(recipe.id)) return null;
-    visited.add(recipe.id);
-    const direct = recipe.ingredients.find((i) => i.id === ingId);
-    if (direct) return recipe;
-    for (const subId of (recipe.subRecipeIds || [])) {
-      const sub = recipes.find((r) => r.id === subId);
-      const owner = findIngredientOwner(sub, ingId, visited);
-      if (owner) return owner;
-    }
-    return null;
-  }
-
-  function saveIngredientConfig() {
-    const recipe = recipes.find((r) => r.id === configuringRecipeId);
+  function saveStepConfig() {
+    const recipe = recipes.find((r) => r.id === openRecipeDetailId);
     if (!recipe) return;
-    const owner = findIngredientOwner(recipe, configuringIngredientId);
-    const ing = owner && owner.ingredients.find((i) => i.id === configuringIngredientId);
-    if (!ing) return;
+    if (!recipe.instructionBlocks) recipe.instructionBlocks = [];
 
-    const amountRaw = document.getElementById('ingQuantityAmount').value.trim();
-    const unitRaw = document.getElementById('ingQuantityUnit').value.trim();
-    const timeRaw = document.getElementById('ingTimeValue').value.trim();
-    const stepRaw = document.getElementById('ingStepNumber').value.trim();
-    const timeUnit = document.querySelector('#ingTimeUnitToggle .unit-toggle-btn.active').dataset.unit;
+    const stepRaw = document.getElementById('stepNumberInput').value.trim();
+    const timeRaw = document.getElementById('stepTimeValue').value.trim();
+    const timeUnit = document.querySelector('#stepTimeUnitToggle .unit-toggle-btn.active').dataset.unit;
+    const items = configuringBlockIngredientIds.map((ingId) => {
+      const qtyInput = document.querySelector(`.step-item-qty[data-ing-id="${ingId}"]`);
+      const unitInput = document.querySelector(`.step-item-unit[data-ing-id="${ingId}"]`);
+      const qtyRaw = qtyInput ? qtyInput.value.trim() : '';
+      return {
+        ingredientId: ingId,
+        quantityAmount: qtyRaw === '' ? null : Number(qtyRaw),
+        quantityUnit: unitInput ? unitInput.value.trim() : '',
+      };
+    });
 
-    ing.quantityAmount = amountRaw === '' ? null : Number(amountRaw);
-    ing.quantityUnit = unitRaw;
-    ing.actions = [...configuringActions];
-    ing.timeValue = timeRaw === '' ? null : Number(timeRaw);
-    ing.timeUnit = timeUnit;
-    ing.step = stepRaw === '' ? null : Number(stepRaw);
+    const blockData = {
+      stepNumber: stepRaw === '' ? 1 : Number(stepRaw),
+      items,
+      actions: [...configuringBlockActions],
+      timeValue: timeRaw === '' ? null : Number(timeRaw),
+      timeUnit,
+    };
+
+    if (configuringBlockId) {
+      const block = recipe.instructionBlocks.find((b) => b.id === configuringBlockId);
+      Object.assign(block, blockData);
+    } else {
+      recipe.instructionBlocks.push({ id: uid(), ...blockData });
+    }
 
     saveRecipesData();
-    closeIngredientConfig();
+    selectedIngredientIds = [];
+    closeStepConfig();
+    renderRecipeDetail();
+  }
+
+  function deleteInstructionBlock(blockId) {
+    const recipe = recipes.find((r) => r.id === openRecipeDetailId);
+    if (!recipe) return;
+    recipe.instructionBlocks = (recipe.instructionBlocks || []).filter((b) => b.id !== blockId);
+    saveRecipesData();
     renderRecipeDetail();
   }
 
@@ -2440,19 +2615,22 @@
   document.getElementById('recipeDetailEditBtn').addEventListener('click', () => {
     if (openRecipeDetailId) openRecipeEditor(openRecipeDetailId);
   });
-  document.getElementById('ingredientConfigSaveBtn').addEventListener('click', saveIngredientConfig);
-  document.getElementById('ingredientConfigOverlay').addEventListener('click', (e) => {
-    if (e.target.id === 'ingredientConfigOverlay') closeIngredientConfig();
+  document.getElementById('buildStepBtn').addEventListener('click', () => openStepConfig(null));
+  document.getElementById('stepConfigSaveBtn').addEventListener('click', saveStepConfig);
+  document.getElementById('stepConfigOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'stepConfigOverlay') closeStepConfig();
   });
-  document.getElementById('ingTimeUnitToggle').addEventListener('click', (e) => {
+  document.getElementById('stepTimeUnitToggle').addEventListener('click', (e) => {
     const btn = e.target.closest('.unit-toggle-btn');
-    if (btn) setTimeUnitToggle(btn.dataset.unit);
+    if (btn) setStepTimeUnitToggle(btn.dataset.unit);
   });
   document.getElementById('copyStepsSummaryBtn').addEventListener('click', () => {
     const recipe = recipes.find((r) => r.id === openRecipeDetailId);
     if (!recipe) return;
-    const lines = buildStepsSummaryLines(recipe);
-    const text = lines.length ? `${recipe.name}\n\n${lines.join('\n')}` : recipe.name;
+    const groups = buildStepsSummaryLines(recipe);
+    const text = groups.length
+      ? `${recipe.name}\n\n${groups.map((g) => `Paso ${g.step}\n${g.lines.map((l) => `• ${l}`).join('\n')}`).join('\n\n')}`
+      : recipe.name;
     const btn = document.getElementById('copyStepsSummaryBtn');
     const restoreLabel = btn.textContent;
     const onCopied = () => {
@@ -2801,16 +2979,20 @@
     } else if (action === 'jump-to-letter') {
       const el = document.getElementById(`recetas-letter-${target.dataset.letter}`);
       if (el) el.scrollIntoView({ block: 'start' });
-    } else if (action === 'open-ingredient-config') {
-      openIngredientConfig(target.dataset.recipeId, target.dataset.ingId);
-    } else if (action === 'toggle-ingredient-action') {
+    } else if (action === 'toggle-ingredient-selection') {
+      toggleIngredientSelection(target.dataset.ingId);
+    } else if (action === 'edit-instruction-block') {
+      openStepConfig(target.dataset.blockId);
+    } else if (action === 'delete-instruction-block') {
+      deleteInstructionBlock(target.dataset.blockId);
+    } else if (action === 'toggle-step-action') {
       const actionId = target.dataset.actionId;
-      if (configuringActions.includes(actionId)) {
-        configuringActions = configuringActions.filter((id) => id !== actionId);
+      if (configuringBlockActions.includes(actionId)) {
+        configuringBlockActions = configuringBlockActions.filter((id) => id !== actionId);
       } else {
-        configuringActions.push(actionId);
+        configuringBlockActions.push(actionId);
       }
-      renderIngredientActionsGrid();
+      renderStepActionsGrid();
     }
   }
 
@@ -2825,7 +3007,8 @@
   document.getElementById('recetasList').addEventListener('click', handleDelegatedClick);
   document.getElementById('alphaIndex').addEventListener('click', handleDelegatedClick);
   document.getElementById('recipeDetailIngredients').addEventListener('click', handleDelegatedClick);
-  document.getElementById('ingActionsGrid').addEventListener('click', handleDelegatedClick);
+  document.getElementById('instructionBlocksList').addEventListener('click', handleDelegatedClick);
+  document.getElementById('stepActionsGrid').addEventListener('click', handleDelegatedClick);
 
   // Refuerzo táctil: algunos WebViews de Android disparan click con demora
   // o lo pierden en scroll rápido. touchend + click combinados sin duplicar.
