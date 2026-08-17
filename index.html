@@ -565,6 +565,111 @@
   .picker-actions { display: flex; gap: 8px; margin-bottom: 14px; }
   .picker-actions .toggle-btn { flex: 1; justify-content: center; }
   .hidden-file-input { display: none; }
+
+  /* ---- Pantalla Recetas: índice alfabético ---- */
+  .recetas-body-row {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+  .recetas-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 8px 24px 16px;
+  }
+  .recipe-letter-heading {
+    font-size: 12.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent-2);
+    margin: 16px 0 6px 0;
+  }
+  .recipe-letter-heading:first-child { margin-top: 0; }
+  .recetas-empty {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 60px 20px;
+    font-size: 14px;
+  }
+  .alpha-index {
+    width: 26px;
+    min-width: 26px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 2px;
+    gap: 1px;
+    overflow-y: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .alpha-index::-webkit-scrollbar { display: none; }
+  .alpha-index-letter {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 1.5px 0;
+    width: 100%;
+    text-align: center;
+    border-radius: 4px;
+    background: none;
+    border: none;
+    font-family: inherit;
+  }
+  .alpha-index-letter:active { background: var(--accent-dim); color: var(--accent); }
+
+  /* ---- Detalle de receta: ingredientes tocables + resumen por pasos ---- */
+  .ingredient-detail-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--cat-color, var(--border));
+    border-radius: 12px;
+    padding: 11px 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  .ingredient-detail-icon { font-size: 15px; }
+  .ingredient-detail-body { flex: 1; display: flex; flex-direction: column; line-height: 1.35; min-width: 0; }
+  .ingredient-detail-name { font-size: 14.5px; font-weight: 600; }
+  .ingredient-detail-meta { font-size: 11.5px; color: var(--text-dim); }
+  .ingredient-detail-meta.set { color: var(--accent); }
+  .ingredient-detail-chevron { color: var(--text-dim); font-size: 13px; }
+  .qty-unit-input { max-width: 120px; flex: none; }
+  .unit-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    flex: none;
+  }
+  .unit-toggle-btn {
+    background: var(--card);
+    border: none;
+    color: var(--text-dim);
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .unit-toggle-btn.active { background: var(--accent-dim); color: var(--accent); }
+  #recipeStepsSummary {
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .step-summary-empty { color: var(--text-dim); font-size: 13px; }
   #recipeIngRow { margin-bottom: 12px; }
 
   /* ---- Menú semanal: pantalla completa con el calendario de 2 semanas ---- */
@@ -597,6 +702,8 @@
     font-size: 18px;
     font-weight: 800;
   }
+  .screen-header-spacer { width: 40px; min-width: 40px; }
+  .theme-toggle svg { width: 20px; height: 20px; }
   .screen-body {
     flex: 1;
     overflow-y: auto;
@@ -808,7 +915,8 @@
     <div class="header-top">
       <h1 id="titleBtn" role="button" tabindex="0" aria-label="Ver versión y buscar actualización">🛒 Lista del Super</h1>
       <div class="header-actions">
-        <button class="theme-toggle" id="menuBtn" type="button" aria-label="Menú semanal">📅</button>
+        <button class="theme-toggle" id="recetasBtn" type="button" aria-label="Recetas"></button>
+        <button class="theme-toggle" id="menuBtn" type="button" aria-label="Menú semanal"></button>
         <button class="theme-toggle" id="themeToggle" type="button" aria-label="Cambiar tema"></button>
       </div>
     </div>
@@ -875,7 +983,7 @@
 
 <div class="modal-overlay" id="recipePickerOverlay">
   <div class="modal">
-    <div class="modal-title" id="recipePickerTitle">Mis Recetas</div>
+    <div class="modal-title" id="recipePickerTitle">Menú</div>
     <button class="modal-save-btn" id="newRecipeBtn" type="button">+ Nueva receta</button>
     <div class="picker-actions">
       <button class="toggle-btn" id="exportRecipesBtn" type="button">⬇️ Exportar</button>
@@ -914,11 +1022,66 @@
 <div class="screen-overlay" id="menuOverlay">
   <div class="screen">
     <div class="screen-header">
-      <button class="theme-toggle" id="menuBackBtn" type="button" aria-label="Volver">←</button>
+      <button class="theme-toggle" id="menuBackBtn" type="button" aria-label="Volver"></button>
       <div class="screen-title">Menú Semanal</div>
-      <button class="theme-toggle" id="recipesLibraryBtn" type="button" aria-label="Mis recetas">📖</button>
+      <button class="theme-toggle" id="recipesLibraryBtn" type="button" aria-label="Menú"></button>
     </div>
     <div class="screen-body" id="menuBody"></div>
+  </div>
+</div>
+
+<div class="screen-overlay" id="recetasOverlay">
+  <div class="screen">
+    <div class="screen-header">
+      <button class="theme-toggle" id="recetasBackBtn" type="button" aria-label="Volver"></button>
+      <div class="screen-title">Recetas</div>
+      <div class="screen-header-spacer"></div>
+    </div>
+    <div class="recetas-body-row">
+      <div class="recetas-list" id="recetasList"></div>
+      <div class="alpha-index" id="alphaIndex"></div>
+    </div>
+  </div>
+</div>
+
+<div class="screen-overlay" id="recipeDetailOverlay">
+  <div class="screen">
+    <div class="screen-header">
+      <button class="theme-toggle" id="recipeDetailBackBtn" type="button" aria-label="Volver"></button>
+      <div class="screen-title" id="recipeDetailTitle">Receta</div>
+      <button class="theme-toggle" id="recipeDetailEditBtn" type="button" aria-label="Editar receta"></button>
+    </div>
+    <div class="screen-body" id="recipeDetailBody">
+      <div class="modal-subtitle">Ingredientes</div>
+      <div id="recipeDetailIngredients"></div>
+      <div class="modal-subtitle">Resumen por pasos</div>
+      <div id="recipeStepsSummary"></div>
+      <button class="toggle-btn" id="copyStepsSummaryBtn" type="button">📋 Copiar resumen</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ingredientConfigOverlay">
+  <div class="modal">
+    <div class="modal-title" id="ingredientConfigTitle">Ingrediente</div>
+    <div class="modal-subtitle">Cantidad</div>
+    <div class="add-row">
+      <input type="number" step="0.01" id="ingQuantityAmount" class="text-input" placeholder="Cantidad (ej: 0.5, 700)">
+      <input type="text" id="ingQuantityUnit" class="text-input qty-unit-input" placeholder="Unidad (g, ml...)">
+    </div>
+    <div class="modal-subtitle">Proceso (elegí una o varias)</div>
+    <div class="modal-grid" id="ingActionsGrid"></div>
+    <div class="modal-subtitle">Tiempo</div>
+    <div class="add-row">
+      <input type="number" step="1" min="0" id="ingTimeValue" class="text-input" placeholder="Tiempo">
+      <div class="unit-toggle" id="ingTimeUnitToggle">
+        <button type="button" class="unit-toggle-btn active" data-unit="min">min</button>
+        <button type="button" class="unit-toggle-btn" data-unit="h">h</button>
+      </div>
+    </div>
+    <div class="modal-subtitle">Paso de la receta</div>
+    <input type="number" step="1" min="1" id="ingStepNumber" class="modal-input" placeholder="Número de paso (ej: 1)">
+    <button class="modal-save-btn" id="ingredientConfigSaveBtn" type="button">Guardar</button>
   </div>
 </div>
 
@@ -929,8 +1092,21 @@
   const COLLAPSED_KEY = 'lista_super_collapsed';
   const THEME_KEY = 'lista_super_theme';
 
+  // Set de iconos propios en SVG (línea, estilo Feather/Lucide) en vez de
+  // emoji — heredan color con stroke="currentColor", así siguen el tema.
+  const ICON_SVG_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  const ICONS = {
+    sun: `<svg ${ICON_SVG_ATTRS}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`,
+    moon: `<svg ${ICON_SVG_ATTRS}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
+    calendar: `<svg ${ICON_SVG_ATTRS}><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
+    cooking: `<svg ${ICON_SVG_ATTRS}><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6v-7.13z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>`,
+    list: `<svg ${ICON_SVG_ATTRS}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="0.75" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="0.75" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="0.75" fill="currentColor" stroke="none"/></svg>`,
+    back: `<svg ${ICON_SVG_ATTRS}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`,
+    edit: `<svg ${ICON_SVG_ATTRS}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>`,
+  };
+
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '1.6.0';
+  const APP_VERSION = '2.0.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -962,6 +1138,13 @@
     '1.6.0': [
       'Nuevo: subrecetas. Al crear o editar una receta podés agregar otra receta ya creada como subreceta (ej: "Masa casera" o "Salsa casera" dentro de "Pizza"), y al activarla se suman también sus ingredientes.',
       'Si editás o borrás una receta que se usa como subreceta de otra que está activa, la lista de compras se actualiza sola.'
+    ],
+    '2.0.0': [
+      'Nuevo botón "Recetas" (al lado de Menú Semanal): todas tus recetas en un listado alfabético con guía de letras para scrollear rápido.',
+      'Cada receta ahora tiene una pantalla de detalle: tocando un ingrediente le podés poner cantidad (con decimales o gramos), una o varias formas de procesarlo (picar, trocear, saltear, etc.), tiempo, y a qué paso de la receta pertenece.',
+      'Resumen automático por pasos al final de cada receta, con botón para copiarlo y pegarlo donde quieras.',
+      'El botón "Mis Recetas" de adentro del calendario ahora se llama "Menú" (sigue siendo el acceso rápido para asignar una receta a un día).',
+      'Reemplazamos los emoji de día/noche y calendario por iconos propios de línea, y agregamos uno nuevo para "Recetas".'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -972,9 +1155,20 @@
   function applyTheme() {
     document.documentElement.setAttribute('data-theme', theme);
     const btn = document.getElementById('themeToggle');
-    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    if (btn) btn.innerHTML = theme === 'dark' ? ICONS.sun : ICONS.moon;
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', theme === 'dark' ? '#1e1e2e' : '#eff1f5');
+  }
+
+  // Iconos que no cambian con el tema, se setean una sola vez.
+  function applyStaticIcons() {
+    document.getElementById('recetasBtn').innerHTML = ICONS.cooking;
+    document.getElementById('menuBtn').innerHTML = ICONS.calendar;
+    document.getElementById('menuBackBtn').innerHTML = ICONS.back;
+    document.getElementById('recipesLibraryBtn').innerHTML = ICONS.list;
+    document.getElementById('recetasBackBtn').innerHTML = ICONS.back;
+    document.getElementById('recipeDetailBackBtn').innerHTML = ICONS.back;
+    document.getElementById('recipeDetailEditBtn').innerHTML = ICONS.edit;
   }
 
   document.getElementById('themeToggle').addEventListener('click', () => {
@@ -1163,10 +1357,35 @@
   let recipes = []; // [{ id, name, ingredients: [{id, text, category}], subRecipeIds: [recipeId, ...] }]
   let weeklyPlan = {}; // { 'w1-0': [{id, recipeId, active}], ... }
   let selectedDayKey = null; // día abierto en el calendario (null = todos cerrados)
-  let pickerDayKey = null; // día para el que se está eligiendo receta (null = modo "Mis Recetas")
+  let pickerDayKey = null; // día para el que se está eligiendo receta (null = modo "Menú")
   let editingRecipeId = null; // id de la receta que se está editando (null = nueva)
   let editingRecipeIngredients = []; // ingredientes de la receta que se está editando
   let editingRecipeSubIds = []; // ids de subrecetas de la receta que se está editando
+
+  // ---- Pantalla Recetas: detalle con instrucciones de cocina ----
+  const PROCESS_ACTIONS = [
+    { id: 'lavar', label: 'Lavar' },
+    { id: 'pelar', label: 'Pelar' },
+    { id: 'cortar', label: 'Cortar' },
+    { id: 'trocear', label: 'Trocear' },
+    { id: 'picar', label: 'Picar' },
+    { id: 'rallar', label: 'Rallar' },
+    { id: 'machacar', label: 'Machacar' },
+    { id: 'mezclar', label: 'Mezclar' },
+    { id: 'batir', label: 'Batir' },
+    { id: 'marinar', label: 'Marinar' },
+    { id: 'saltear', label: 'Saltear' },
+    { id: 'freir', label: 'Freír' },
+    { id: 'hervir', label: 'Hervir' },
+    { id: 'cocinar', label: 'Cocinar' },
+    { id: 'hornear', label: 'Hornear' },
+    { id: 'reservar', label: 'Reservar' },
+  ];
+  const actionById = Object.fromEntries(PROCESS_ACTIONS.map((a) => [a.id, a]));
+  let openRecipeDetailId = null; // id de la receta abierta en la pantalla de detalle
+  let configuringRecipeId = null; // receta dueña del ingrediente que se está configurando
+  let configuringIngredientId = null; // ingrediente que se está configurando
+  let configuringActions = []; // acciones elegidas (working copy mientras el modal está abierto)
 
   function load() {
     try {
@@ -1790,13 +2009,13 @@
 
   // ---- Picker / biblioteca de recetas ----
   // Mismo bottom sheet para tres usos (pickerMode): 'assign' asigna la receta
-  // tocada al día pickerDayKey; 'manage' ("Mis Recetas") la abre para editar;
+  // tocada al día pickerDayKey; 'manage' ("Menú") la abre para editar;
   // 'subrecipe' la agrega como subreceta de la receta que se está editando.
   // dayKey truthy = modo "asignar al día" (tocar una fila la asigna); null =
-  // modo "Mis Recetas" (tocar una fila la abre para editar).
+  // modo "Menú" (tocar una fila la abre para editar).
   function openRecipePicker(dayKey) {
     pickerDayKey = dayKey || null;
-    document.getElementById('recipePickerTitle').textContent = pickerDayKey ? 'Elegí una receta' : 'Mis Recetas';
+    document.getElementById('recipePickerTitle').textContent = pickerDayKey ? 'Elegí una receta' : 'Menú';
     renderRecipePickerList();
     document.getElementById('recipePickerOverlay').classList.add('show');
   }
@@ -1830,7 +2049,7 @@
 
   // ---- Picker de subrecetas ----
   // Overlay propio (no reutiliza #recipePickerOverlay) para que elegir una
-  // subreceta desde el editor no pise el estado de "Mis Recetas"/"asignar al
+  // subreceta desde el editor no pise el estado de "Menú"/"asignar al
   // día" que pueda estar abierto detrás.
   function openSubrecipePicker() {
     renderSubrecipePickerList();
@@ -1900,6 +2119,8 @@
     saveWeeklyPlan();
     renderRecipePickerList();
     renderMenu();
+    if (openRecipeDetailId === id) closeRecipeDetail();
+    if (document.getElementById('recetasOverlay').classList.contains('show')) renderRecetasList();
   }
 
   // ---- Exportar / importar recetas ----
@@ -1995,6 +2216,254 @@
       }
     };
     reader.readAsText(file);
+  });
+
+  // ---- Pantalla Recetas: listado alfabético con índice lateral ----
+  function openRecetas() {
+    renderRecetasList();
+    document.getElementById('recetasOverlay').classList.add('show');
+  }
+
+  function closeRecetas() {
+    document.getElementById('recetasOverlay').classList.remove('show');
+  }
+
+  function renderRecetasList() {
+    const listEl = document.getElementById('recetasList');
+    const indexEl = document.getElementById('alphaIndex');
+    if (recipes.length === 0) {
+      listEl.innerHTML = '<div class="recetas-empty">Todavía no creaste ninguna receta.<br>Agregá una desde el Menú Semanal.</div>';
+      indexEl.innerHTML = '';
+      return;
+    }
+    const sorted = [...recipes].sort((a, b) => normalize(a.name).localeCompare(normalize(b.name)));
+    const groups = new Map(); // letra -> [recetas]
+    sorted.forEach((r) => {
+      const letter = (normalize(r.name).charAt(0) || '#').toUpperCase();
+      if (!groups.has(letter)) groups.set(letter, []);
+      groups.get(letter).push(r);
+    });
+    const letters = [...groups.keys()].sort();
+
+    listEl.innerHTML = letters.map((letter) => `
+      <div class="recipe-letter-heading" id="recetas-letter-${letter}">${letter}</div>
+      ${groups.get(letter).map((r) => {
+        const count = getEffectiveIngredients(r).length;
+        return `<div class="recipe-row" data-action="open-recipe-detail" data-recipe-id="${r.id}">
+          <div class="recipe-row-body" data-action="open-recipe-detail" data-recipe-id="${r.id}">
+            <span class="recipe-row-name">${escapeHtml(r.name)}</span>
+            <span class="recipe-row-count">${count} ingrediente${count !== 1 ? 's' : ''}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    `).join('');
+
+    // guía dinámica: solo letras con al menos una receta, tocarla scrollea a esa sección
+    indexEl.innerHTML = letters.map((letter) =>
+      `<button type="button" class="alpha-index-letter" data-action="jump-to-letter" data-letter="${letter}">${letter}</button>`
+    ).join('');
+  }
+
+  // ---- Pantalla de detalle de receta: ingredientes tocables + resumen ----
+  function openRecipeDetail(recipeId) {
+    openRecipeDetailId = recipeId;
+    const recipe = recipes.find((r) => r.id === recipeId);
+    if (!recipe) return;
+    document.getElementById('recipeDetailTitle').textContent = recipe.name;
+    renderRecipeDetail();
+    document.getElementById('recipeDetailOverlay').classList.add('show');
+  }
+
+  function closeRecipeDetail() {
+    document.getElementById('recipeDetailOverlay').classList.remove('show');
+    openRecipeDetailId = null;
+  }
+
+  function formatIngredientMeta(ing) {
+    const parts = [];
+    if (ing.quantityAmount != null && ing.quantityAmount !== '') {
+      parts.push(`${ing.quantityAmount}${ing.quantityUnit ? ' ' + ing.quantityUnit : ''}`);
+    }
+    if (ing.actions && ing.actions.length) {
+      parts.push(ing.actions.map((id) => actionById[id] && actionById[id].label.toLowerCase()).filter(Boolean).join(', '));
+    }
+    if (ing.timeValue != null && ing.timeValue !== '') {
+      parts.push(`${ing.timeValue} ${ing.timeUnit === 'h' ? 'h' : 'min'}`);
+    }
+    if (ing.step != null && ing.step !== '') {
+      parts.push(`paso ${ing.step}`);
+    }
+    return parts;
+  }
+
+  function renderRecipeDetail() {
+    const recipe = recipes.find((r) => r.id === openRecipeDetailId);
+    if (!recipe) return;
+    const box = document.getElementById('recipeDetailIngredients');
+    const effective = getEffectiveIngredients(recipe);
+    box.innerHTML = effective.map((ing) => {
+      const cat = catById[ing.category] || catById['otros'];
+      const metaParts = formatIngredientMeta(ing);
+      const isSet = metaParts.length > 0;
+      return `<div class="ingredient-detail-row" style="--cat-color:${catColorVar(cat)}" data-action="open-ingredient-config" data-recipe-id="${recipe.id}" data-ing-id="${ing.id}">
+        <span class="ingredient-detail-icon">${cat.icon}</span>
+        <div class="ingredient-detail-body">
+          <span class="ingredient-detail-name">${escapeHtml(ing.text)}</span>
+          <span class="ingredient-detail-meta${isSet ? ' set' : ''}">${isSet ? metaParts.join(' · ') : 'Tocá para configurar'}</span>
+        </div>
+        <span class="ingredient-detail-chevron">›</span>
+      </div>`;
+    }).join('');
+    renderStepsSummary();
+  }
+
+  function buildStepsSummaryLines(recipe) {
+    const effective = getEffectiveIngredients(recipe);
+    const withStep = effective.filter((i) => i.step != null && i.step !== '');
+    const steps = new Map();
+    withStep.forEach((ing) => {
+      const s = Number(ing.step);
+      if (!steps.has(s)) steps.set(s, []);
+      steps.get(s).push(ing);
+    });
+    const stepNumbers = [...steps.keys()].sort((a, b) => a - b);
+    return stepNumbers.map((s) => {
+      const parts = steps.get(s).map((ing) => {
+        const qty = (ing.quantityAmount != null && ing.quantityAmount !== '')
+          ? `${ing.quantityAmount}${ing.quantityUnit ? ' ' + ing.quantityUnit : ''} de `
+          : '';
+        const actionsLabel = (ing.actions || []).map((id) => actionById[id] && actionById[id].label.toLowerCase()).filter(Boolean).join(', ');
+        const timeLabel = (ing.timeValue != null && ing.timeValue !== '') ? ` (${ing.timeValue} ${ing.timeUnit === 'h' ? 'h' : 'min'})` : '';
+        return `${qty}${ing.text}${actionsLabel ? ' — ' + actionsLabel : ''}${timeLabel}`;
+      });
+      return `Paso ${s}: ${parts.join('; ')}.`;
+    });
+  }
+
+  function renderStepsSummary() {
+    const recipe = recipes.find((r) => r.id === openRecipeDetailId);
+    const box = document.getElementById('recipeStepsSummary');
+    if (!recipe) return;
+    const lines = buildStepsSummaryLines(recipe);
+    box.innerHTML = lines.length
+      ? lines.map((l) => escapeHtml(l)).join('\n')
+      : '<span class="step-summary-empty">Configurá cantidad, proceso, tiempo y paso en algún ingrediente para armar el resumen.</span>';
+  }
+
+  // ---- Modal de configuración de ingrediente (cantidad, proceso, tiempo, paso) ----
+  function openIngredientConfig(recipeId, ingId) {
+    const recipe = recipes.find((r) => r.id === recipeId);
+    if (!recipe) return;
+    const ing = getEffectiveIngredients(recipe).find((i) => i.id === ingId);
+    if (!ing) return;
+    configuringRecipeId = recipeId;
+    configuringIngredientId = ingId;
+    configuringActions = [...(ing.actions || [])];
+    document.getElementById('ingredientConfigTitle').textContent = ing.text.charAt(0).toUpperCase() + ing.text.slice(1);
+    document.getElementById('ingQuantityAmount').value = ing.quantityAmount != null ? ing.quantityAmount : '';
+    document.getElementById('ingQuantityUnit').value = ing.quantityUnit || '';
+    document.getElementById('ingTimeValue').value = ing.timeValue != null ? ing.timeValue : '';
+    document.getElementById('ingStepNumber').value = ing.step != null ? ing.step : '';
+    setTimeUnitToggle(ing.timeUnit === 'h' ? 'h' : 'min');
+    renderIngredientActionsGrid();
+    const overlay = document.getElementById('ingredientConfigOverlay');
+    document.body.appendChild(overlay);
+    overlay.classList.add('show');
+  }
+
+  function closeIngredientConfig() {
+    document.getElementById('ingredientConfigOverlay').classList.remove('show');
+    configuringRecipeId = null;
+    configuringIngredientId = null;
+    configuringActions = [];
+  }
+
+  function setTimeUnitToggle(unit) {
+    document.querySelectorAll('#ingTimeUnitToggle .unit-toggle-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.unit === unit);
+    });
+  }
+
+  function renderIngredientActionsGrid() {
+    const grid = document.getElementById('ingActionsGrid');
+    grid.innerHTML = PROCESS_ACTIONS.map((a) => `
+      <button type="button" class="modal-cat-btn${configuringActions.includes(a.id) ? ' selected' : ''}" data-action="toggle-ingredient-action" data-action-id="${a.id}">
+        <span>${a.label}</span>
+      </button>
+    `).join('');
+  }
+
+  // Encuentra el ingrediente por id en la receta O en cualquiera de sus
+  // subrecetas (recursivo) — la config se guarda donde el ingrediente vive
+  // de verdad, así una subreceta compartida queda consistente para todos.
+  function findIngredientOwner(recipe, ingId, visited = new Set()) {
+    if (!recipe || visited.has(recipe.id)) return null;
+    visited.add(recipe.id);
+    const direct = recipe.ingredients.find((i) => i.id === ingId);
+    if (direct) return recipe;
+    for (const subId of (recipe.subRecipeIds || [])) {
+      const sub = recipes.find((r) => r.id === subId);
+      const owner = findIngredientOwner(sub, ingId, visited);
+      if (owner) return owner;
+    }
+    return null;
+  }
+
+  function saveIngredientConfig() {
+    const recipe = recipes.find((r) => r.id === configuringRecipeId);
+    if (!recipe) return;
+    const owner = findIngredientOwner(recipe, configuringIngredientId);
+    const ing = owner && owner.ingredients.find((i) => i.id === configuringIngredientId);
+    if (!ing) return;
+
+    const amountRaw = document.getElementById('ingQuantityAmount').value.trim();
+    const unitRaw = document.getElementById('ingQuantityUnit').value.trim();
+    const timeRaw = document.getElementById('ingTimeValue').value.trim();
+    const stepRaw = document.getElementById('ingStepNumber').value.trim();
+    const timeUnit = document.querySelector('#ingTimeUnitToggle .unit-toggle-btn.active').dataset.unit;
+
+    ing.quantityAmount = amountRaw === '' ? null : Number(amountRaw);
+    ing.quantityUnit = unitRaw;
+    ing.actions = [...configuringActions];
+    ing.timeValue = timeRaw === '' ? null : Number(timeRaw);
+    ing.timeUnit = timeUnit;
+    ing.step = stepRaw === '' ? null : Number(stepRaw);
+
+    saveRecipesData();
+    closeIngredientConfig();
+    renderRecipeDetail();
+  }
+
+  document.getElementById('recetasBtn').addEventListener('click', openRecetas);
+  document.getElementById('recetasBackBtn').addEventListener('click', closeRecetas);
+  document.getElementById('recipeDetailBackBtn').addEventListener('click', closeRecipeDetail);
+  document.getElementById('recipeDetailEditBtn').addEventListener('click', () => {
+    if (openRecipeDetailId) openRecipeEditor(openRecipeDetailId);
+  });
+  document.getElementById('ingredientConfigSaveBtn').addEventListener('click', saveIngredientConfig);
+  document.getElementById('ingredientConfigOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'ingredientConfigOverlay') closeIngredientConfig();
+  });
+  document.getElementById('ingTimeUnitToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('.unit-toggle-btn');
+    if (btn) setTimeUnitToggle(btn.dataset.unit);
+  });
+  document.getElementById('copyStepsSummaryBtn').addEventListener('click', () => {
+    const recipe = recipes.find((r) => r.id === openRecipeDetailId);
+    if (!recipe) return;
+    const lines = buildStepsSummaryLines(recipe);
+    const text = lines.length ? `${recipe.name}\n\n${lines.join('\n')}` : recipe.name;
+    const btn = document.getElementById('copyStepsSummaryBtn');
+    const restoreLabel = btn.textContent;
+    const onCopied = () => {
+      btn.textContent = '✓ Copiado';
+      setTimeout(() => { btn.textContent = restoreLabel; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(onCopied).catch(() => alert('No se pudo copiar.'));
+    } else {
+      alert('Este navegador no permite copiar automáticamente.');
+    }
   });
 
   // ---- Editor de receta (nombre + ingredientes indexados) ----
@@ -2112,6 +2581,11 @@
       }
       renderRecipePickerList();
       renderMenu();
+      if (document.getElementById('recetasOverlay').classList.contains('show')) renderRecetasList();
+      if (openRecipeDetailId) {
+        document.getElementById('recipeDetailTitle').textContent = recipes.find((r) => r.id === openRecipeDetailId).name;
+        renderRecipeDetail();
+      }
     }
   }
 
@@ -2322,6 +2796,21 @@
     } else if (action === 'remove-subrecipe') {
       editingRecipeSubIds = editingRecipeSubIds.filter((id) => id !== target.dataset.recipeId);
       renderEditorSubrecipes();
+    } else if (action === 'open-recipe-detail') {
+      openRecipeDetail(target.dataset.recipeId);
+    } else if (action === 'jump-to-letter') {
+      const el = document.getElementById(`recetas-letter-${target.dataset.letter}`);
+      if (el) el.scrollIntoView({ block: 'start' });
+    } else if (action === 'open-ingredient-config') {
+      openIngredientConfig(target.dataset.recipeId, target.dataset.ingId);
+    } else if (action === 'toggle-ingredient-action') {
+      const actionId = target.dataset.actionId;
+      if (configuringActions.includes(actionId)) {
+        configuringActions = configuringActions.filter((id) => id !== actionId);
+      } else {
+        configuringActions.push(actionId);
+      }
+      renderIngredientActionsGrid();
     }
   }
 
@@ -2333,6 +2822,10 @@
   document.getElementById('recipeIngList').addEventListener('click', handleDelegatedClick);
   document.getElementById('subrecipeList').addEventListener('click', handleDelegatedClick);
   document.getElementById('subrecipePickerList').addEventListener('click', handleDelegatedClick);
+  document.getElementById('recetasList').addEventListener('click', handleDelegatedClick);
+  document.getElementById('alphaIndex').addEventListener('click', handleDelegatedClick);
+  document.getElementById('recipeDetailIngredients').addEventListener('click', handleDelegatedClick);
+  document.getElementById('ingActionsGrid').addEventListener('click', handleDelegatedClick);
 
   // Refuerzo táctil: algunos WebViews de Android disparan click con demora
   // o lo pierden en scroll rápido. touchend + click combinados sin duplicar.
@@ -2344,6 +2837,7 @@
 
   // Init
   applyTheme();
+  applyStaticIcons();
   load();
   loadRecipes();
   render();
