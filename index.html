@@ -560,6 +560,8 @@
   }
   #versionRefreshBtn:disabled { opacity: 0.6; }
   #newRecipeBtn { margin: 0 0 10px 0; }
+  #addSubrecipeBtn { width: 100%; justify-content: center; margin-bottom: 10px; }
+  .subrecipe-list { margin-bottom: 14px; }
   .picker-actions { display: flex; gap: 8px; margin-bottom: 14px; }
   .picker-actions .toggle-btn { flex: 1; justify-content: center; }
   .hidden-file-input { display: none; }
@@ -895,7 +897,17 @@
       <div class="suggestions" id="recipeIngSuggestions"></div>
     </div>
     <div id="recipeIngList" class="ingredient-list"></div>
+    <div class="modal-subtitle">Subrecetas (opcional)</div>
+    <button class="toggle-btn" id="addSubrecipeBtn" type="button">+ Agregar subreceta</button>
+    <div id="subrecipeList" class="subrecipe-list"></div>
     <button class="modal-save-btn" id="recipeSaveBtn" type="button">Guardar receta</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="subrecipePickerOverlay">
+  <div class="modal">
+    <div class="modal-title">Agregar subreceta</div>
+    <div id="subrecipePickerList"></div>
   </div>
 </div>
 
@@ -918,7 +930,7 @@
   const THEME_KEY = 'lista_super_theme';
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '1.5.0';
+  const APP_VERSION = '1.6.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -946,6 +958,10 @@
     '1.5.0': [
       'Editar una receta que ya está activada ahora actualiza la lista de compras al toque: los ingredientes que sacaste desaparecen y los que agregaste aparecen.',
       'Limpiamos el listado de productos: sacamos duplicados de plural (ej. "papas" cuando ya estaba "papa", "milanesas" cuando ya estaba "milanesa") que ensuciaban las sugerencias al escribir.'
+    ],
+    '1.6.0': [
+      'Nuevo: subrecetas. Al crear o editar una receta podés agregar otra receta ya creada como subreceta (ej: "Masa casera" o "Salsa casera" dentro de "Pizza"), y al activarla se suman también sus ingredientes.',
+      'Si editás o borrás una receta que se usa como subreceta de otra que está activa, la lista de compras se actualiza sola.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1144,12 +1160,13 @@
   const WEEKDAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const WEEKDAY_ABBR = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
   const DAY_COLORS = ['red', 'peach', 'yellow', 'green', 'sky', 'mauve', 'pink']; // uno por día de semana, vía --ctp-*
-  let recipes = []; // [{ id, name, ingredients: [{id, text, category}] }]
+  let recipes = []; // [{ id, name, ingredients: [{id, text, category}], subRecipeIds: [recipeId, ...] }]
   let weeklyPlan = {}; // { 'w1-0': [{id, recipeId, active}], ... }
   let selectedDayKey = null; // día abierto en el calendario (null = todos cerrados)
-  let pickerDayKey = null; // día para el que se está eligiendo receta (null = modo biblioteca)
+  let pickerDayKey = null; // día para el que se está eligiendo receta (null = modo "Mis Recetas")
   let editingRecipeId = null; // id de la receta que se está editando (null = nueva)
   let editingRecipeIngredients = []; // ingredientes de la receta que se está editando
+  let editingRecipeSubIds = []; // ids de subrecetas de la receta que se está editando
 
   function load() {
     try {
@@ -1330,9 +1347,24 @@
   // 2 recetas comparten "papas" (se ve como "Papas x2"), desactivar una sola
   // resta uno en vez de borrar el item entero — solo desaparece cuando ya
   // ninguna receta activa lo necesita.
+  // Junta los ingredientes propios de la receta con los de cada subreceta
+  // (recursivo). visited corta ciclos: si A ya se está expandiendo y una
+  // subreceta suya vuelve a apuntar a A, se ignora esa rama en vez de colgar.
+  function getEffectiveIngredients(recipe, visited = new Set()) {
+    if (!recipe) return [];
+    if (recipe.id && visited.has(recipe.id)) return [];
+    const nextVisited = recipe.id ? new Set(visited).add(recipe.id) : visited;
+    let result = [...(recipe.ingredients || [])];
+    (recipe.subRecipeIds || []).forEach((subId) => {
+      const sub = recipes.find((r) => r.id === subId);
+      if (sub) result = result.concat(getEffectiveIngredients(sub, nextVisited));
+    });
+    return result;
+  }
+
   function applyRecipeToShoppingList(recipe) {
     let changed = false;
-    recipe.ingredients.forEach((ing) => {
+    getEffectiveIngredients(recipe).forEach((ing) => {
       const existing = items.find((i) => normalize(i.text) === normalize(ing.text));
       if (existing) {
         existing.recipeCount = (existing.recipeCount || 0) + 1;
@@ -1351,7 +1383,7 @@
 
   function removeRecipeFromShoppingList(recipe) {
     let changed = false;
-    recipe.ingredients.forEach((ing) => {
+    getEffectiveIngredients(recipe).forEach((ing) => {
       const existing = items.find((i) => normalize(i.text) === normalize(ing.text));
       if (existing && existing.recipeCount > 0) {
         existing.recipeCount -= 1;
@@ -1666,12 +1698,13 @@
   function renderDayRecipeChip(entry, dayKey) {
     const recipe = recipes.find((r) => r.id === entry.recipeId);
     if (!recipe) return '';
+    const count = getEffectiveIngredients(recipe).length;
     return `
       <div class="recipe-chip${entry.active ? ' active' : ''}">
         <div class="chip-checkbox" data-action="toggle-recipe-active" data-day-key="${dayKey}" data-entry-id="${entry.id}">${entry.active ? '✓' : ''}</div>
         <div class="recipe-chip-body" data-action="toggle-recipe-active" data-day-key="${dayKey}" data-entry-id="${entry.id}">
           <span class="recipe-chip-name">${escapeHtml(recipe.name)}</span>
-          <span class="recipe-chip-count">${recipe.ingredients.length} ingrediente${recipe.ingredients.length !== 1 ? 's' : ''}${entry.active ? ' · en la lista' : ''}</span>
+          <span class="recipe-chip-count">${count} ingrediente${count !== 1 ? 's' : ''}${entry.active ? ' · en la lista' : ''}</span>
         </div>
         <button class="recipe-chip-remove" type="button" data-action="remove-recipe-from-day" data-day-key="${dayKey}" data-entry-id="${entry.id}">✕</button>
       </div>
@@ -1714,10 +1747,53 @@
     renderMenu();
   }
 
+  // ---- Subrecetas: helpers de grafo (ciclos, ancestros, resync en cascada) ----
+  // ¿candidateId ya depende (directa o transitivamente) de targetId? Se usa
+  // para saber si agregar candidateId como subreceta de targetId cerraría un
+  // ciclo (targetId -> candidateId -> ... -> targetId).
+  function recipeDependsOn(candidateId, targetId, visited = new Set()) {
+    if (candidateId === targetId) return true;
+    if (visited.has(candidateId)) return false;
+    visited.add(candidateId);
+    const r = recipes.find((x) => x.id === candidateId);
+    if (!r) return false;
+    return (r.subRecipeIds || []).some((subId) => recipeDependsOn(subId, targetId, visited));
+  }
+
+  // Todas las recetas que usan recipeId como subreceta, directa o
+  // transitivamente (para propagar un cambio hacia arriba en el árbol).
+  function findAncestorRecipes(recipeId, visited = new Set()) {
+    const directParents = recipes.filter((r) => (r.subRecipeIds || []).includes(recipeId) && !visited.has(r.id));
+    let result = [];
+    directParents.forEach((p) => {
+      visited.add(p.id);
+      result.push(p);
+      result = result.concat(findAncestorRecipes(p.id, visited));
+    });
+    return result;
+  }
+
+  // Resincroniza la lista de compras de una receta ya activa a partir de su
+  // set de ingredientes efectivos viejo vs. nuevo (ya aplanados, sin volver a
+  // resolver subrecetas — por eso subRecipeIds:[] en los objetos pasados).
+  function resyncByEffectiveDiff(recipeId, oldEffectiveIngredients, newEffectiveIngredients) {
+    let activeCount = 0;
+    Object.keys(weeklyPlan).forEach((dayKey) => {
+      (weeklyPlan[dayKey] || []).forEach((entry) => {
+        if (entry.recipeId === recipeId && entry.active) activeCount++;
+      });
+    });
+    if (activeCount === 0) return;
+    for (let i = 0; i < activeCount; i++) removeRecipeFromShoppingList({ ingredients: oldEffectiveIngredients, subRecipeIds: [] });
+    for (let i = 0; i < activeCount; i++) applyRecipeToShoppingList({ ingredients: newEffectiveIngredients, subRecipeIds: [] });
+  }
+
   // ---- Picker / biblioteca de recetas ----
-  // Mismo bottom sheet para dos usos: si pickerDayKey tiene valor, tocar una
-  // receta la asigna a ese día; si es null, es el modo "Mis Recetas" y tocarla
-  // la abre para editar.
+  // Mismo bottom sheet para tres usos (pickerMode): 'assign' asigna la receta
+  // tocada al día pickerDayKey; 'manage' ("Mis Recetas") la abre para editar;
+  // 'subrecipe' la agrega como subreceta de la receta que se está editando.
+  // dayKey truthy = modo "asignar al día" (tocar una fila la asigna); null =
+  // modo "Mis Recetas" (tocar una fila la abre para editar).
   function openRecipePicker(dayKey) {
     pickerDayKey = dayKey || null;
     document.getElementById('recipePickerTitle').textContent = pickerDayKey ? 'Elegí una receta' : 'Mis Recetas';
@@ -1737,29 +1813,89 @@
       return;
     }
     const bodyAction = pickerDayKey ? 'assign-recipe' : 'edit-recipe';
-    list.innerHTML = recipes.map((r) => `
+    list.innerHTML = recipes.map((r) => {
+      const count = getEffectiveIngredients(r).length;
+      return `
       <div class="recipe-row">
         <div class="recipe-row-body" data-action="${bodyAction}" data-recipe-id="${r.id}">
           <span class="recipe-row-name">${escapeHtml(r.name)}</span>
-          <span class="recipe-row-count">${r.ingredients.length} ingrediente${r.ingredients.length !== 1 ? 's' : ''}</span>
+          <span class="recipe-row-count">${count} ingrediente${count !== 1 ? 's' : ''}</span>
         </div>
         <button class="edit-btn" type="button" data-action="edit-recipe" data-recipe-id="${r.id}">✏️</button>
         <button class="delete-btn" type="button" data-action="delete-recipe" data-recipe-id="${r.id}">✕</button>
       </div>
-    `).join('');
+    `;
+    }).join('');
+  }
+
+  // ---- Picker de subrecetas ----
+  // Overlay propio (no reutiliza #recipePickerOverlay) para que elegir una
+  // subreceta desde el editor no pise el estado de "Mis Recetas"/"asignar al
+  // día" que pueda estar abierto detrás.
+  function openSubrecipePicker() {
+    renderSubrecipePickerList();
+    const overlay = document.getElementById('subrecipePickerOverlay');
+    document.body.appendChild(overlay); // queda arriba del editor de receta
+    overlay.classList.add('show');
+  }
+
+  function closeSubrecipePicker() {
+    document.getElementById('subrecipePickerOverlay').classList.remove('show');
+  }
+
+  function renderSubrecipePickerList() {
+    const list = document.getElementById('subrecipePickerList');
+    const candidates = recipes.filter((r) => {
+      if (editingRecipeId && r.id === editingRecipeId) return false;
+      if (editingRecipeSubIds.includes(r.id)) return false;
+      if (editingRecipeId && recipeDependsOn(r.id, editingRecipeId)) return false;
+      return true;
+    });
+    if (candidates.length === 0) {
+      list.innerHTML = '<div class="empty" style="padding:24px 0;">No hay otra receta disponible para usar como subreceta acá.</div>';
+      return;
+    }
+    list.innerHTML = candidates.map((r) => {
+      const count = getEffectiveIngredients(r).length;
+      return `
+      <div class="recipe-row">
+        <div class="recipe-row-body" data-action="pick-subrecipe" data-recipe-id="${r.id}">
+          <span class="recipe-row-name">${escapeHtml(r.name)}</span>
+          <span class="recipe-row-count">${count} ingrediente${count !== 1 ? 's' : ''}</span>
+        </div>
+      </div>
+    `;
+    }).join('');
   }
 
   function deleteRecipe(id) {
     const recipe = recipes.find((r) => r.id === id);
     if (!recipe) return;
-    if (!confirm(`¿Borrar la receta "${recipe.name}"? Se va a quitar de todos los días donde esté agregada.`)) return;
+    if (!confirm(`¿Borrar la receta "${recipe.name}"? Se va a quitar de todos los días donde esté agregada y de cualquier receta que la use como subreceta.`)) return;
+
+    const ancestors = findAncestorRecipes(id);
+    const oldEffectiveByAncestor = new Map(ancestors.map((a) => [a.id, getEffectiveIngredients(a)]));
+
     Object.keys(weeklyPlan).forEach((dayKey) => {
       (weeklyPlan[dayKey] || []).forEach((entry) => {
         if (entry.recipeId === id && entry.active) removeRecipeFromShoppingList(recipe);
       });
       weeklyPlan[dayKey] = (weeklyPlan[dayKey] || []).filter((e) => e.recipeId !== id);
     });
+
     recipes = recipes.filter((r) => r.id !== id);
+    recipes.forEach((r) => {
+      if (r.subRecipeIds && r.subRecipeIds.includes(id)) {
+        r.subRecipeIds = r.subRecipeIds.filter((subId) => subId !== id);
+      }
+    });
+
+    ancestors.forEach((a) => {
+      const stillExists = recipes.find((r) => r.id === a.id);
+      if (!stillExists) return;
+      resyncByEffectiveDiff(a.id, oldEffectiveByAncestor.get(a.id), getEffectiveIngredients(stillExists));
+    });
+
     saveRecipesData();
     saveWeeklyPlan();
     renderRecipePickerList();
@@ -1800,12 +1936,22 @@
       alert('El archivo no es un backup de recetas válido.');
       return;
     }
+    const validImports = importedList.filter((r) => r && typeof r.name === 'string' && r.name.trim() && Array.isArray(r.ingredients));
+    if (validImports.length === 0) {
+      alert('No se encontró ninguna receta válida en el archivo.');
+      return;
+    }
+
+    // A cada receta importada le tocan ids nuevos (para no chocar con las que
+    // ya existen); guardamos el mapeo viejo->nuevo para poder remapear las
+    // referencias de subRecipeIds dentro del mismo lote importado.
+    const idMap = new Map();
+    validImports.forEach((r) => { if (r.id) idMap.set(r.id, uid()); });
+
     const takenNames = new Set(recipes.map((r) => normalize(r.name)));
     let addedCount = 0;
-    importedList.forEach((r) => {
-      if (!r || typeof r.name !== 'string' || !Array.isArray(r.ingredients)) return;
+    validImports.forEach((r) => {
       const rawName = r.name.trim();
-      if (!rawName) return;
       const name = uniqueRecipeName(rawName, takenNames);
       takenNames.add(normalize(name));
       const ingredients = r.ingredients
@@ -1815,17 +1961,19 @@
           text: ing.text.trim(),
           category: (ing.category && catById[ing.category]) ? ing.category : 'otros'
         }));
-      recipes.push({ id: uid(), name, ingredients });
+      // solo se conservan referencias a subrecetas que también vinieron en
+      // este mismo archivo; una referencia a un id de otro backup no se puede
+      // resolver, así que se descarta en vez de dejarla colgada.
+      const subRecipeIds = Array.isArray(r.subRecipeIds)
+        ? r.subRecipeIds.map((oldSubId) => idMap.get(oldSubId)).filter(Boolean)
+        : [];
+      recipes.push({ id: idMap.get(r.id) || uid(), name, ingredients, subRecipeIds });
       addedCount++;
     });
-    if (addedCount > 0) {
-      saveRecipesData();
-      renderRecipePickerList();
-      renderMenu();
-    }
-    alert(addedCount > 0
-      ? `Se importaron ${addedCount} receta${addedCount !== 1 ? 's' : ''}.`
-      : 'No se encontró ninguna receta válida en el archivo.');
+    saveRecipesData();
+    renderRecipePickerList();
+    renderMenu();
+    alert(`Se importaron ${addedCount} receta${addedCount !== 1 ? 's' : ''}.`);
   }
 
   document.getElementById('exportRecipesBtn').addEventListener('click', exportRecipes);
@@ -1856,13 +2004,18 @@
       const r = recipes.find((x) => x.id === editingRecipeId);
       document.getElementById('recipeNameInput').value = r.name;
       editingRecipeIngredients = r.ingredients.map((i) => ({ ...i }));
+      editingRecipeSubIds = [...(r.subRecipeIds || [])];
     } else {
       document.getElementById('recipeNameInput').value = '';
       editingRecipeIngredients = [];
+      editingRecipeSubIds = [];
     }
     document.getElementById('recipeIngInput').value = '';
     renderEditorIngredients();
-    document.getElementById('recipeEditorOverlay').classList.add('show');
+    renderEditorSubrecipes();
+    const overlay = document.getElementById('recipeEditorOverlay');
+    document.body.appendChild(overlay); // queda arriba de cualquier otro modal ya abierto (ej. el picker de recetas)
+    overlay.classList.add('show');
     setTimeout(() => document.getElementById('recipeNameInput').focus(), 50);
   }
 
@@ -1870,6 +2023,7 @@
     document.getElementById('recipeEditorOverlay').classList.remove('show');
     editingRecipeId = null;
     editingRecipeIngredients = [];
+    editingRecipeSubIds = [];
   }
 
   function renderEditorIngredients() {
@@ -1888,20 +2042,24 @@
     }).join('');
   }
 
-  // Si la receta editada tiene días activos, resincroniza la lista de
-  // compras: saca los ingredientes viejos (una vez por cada día activo) y
-  // vuelve a aplicar los nuevos, así un cambio en la receta se refleja bien
-  // aunque ya esté activada (ingrediente sacado, agregado, o renombrado).
-  function resyncActiveRecipeIngredients(recipeId, oldIngredients, newIngredients) {
-    let activeCount = 0;
-    Object.keys(weeklyPlan).forEach((dayKey) => {
-      (weeklyPlan[dayKey] || []).forEach((entry) => {
-        if (entry.recipeId === recipeId && entry.active) activeCount++;
-      });
-    });
-    if (activeCount === 0) return;
-    for (let i = 0; i < activeCount; i++) removeRecipeFromShoppingList({ ingredients: oldIngredients });
-    for (let i = 0; i < activeCount; i++) applyRecipeToShoppingList({ ingredients: newIngredients });
+  function renderEditorSubrecipes() {
+    const box = document.getElementById('subrecipeList');
+    if (editingRecipeSubIds.length === 0) {
+      box.innerHTML = '<div class="ingredient-empty">Sin subrecetas.</div>';
+      return;
+    }
+    box.innerHTML = editingRecipeSubIds.map((subId) => {
+      const sub = recipes.find((r) => r.id === subId);
+      if (!sub) return '';
+      const count = getEffectiveIngredients(sub).length;
+      return `<div class="recipe-row">
+        <div class="recipe-row-body">
+          <span class="recipe-row-name">🧩 ${escapeHtml(sub.name)}</span>
+          <span class="recipe-row-count">${count} ingrediente${count !== 1 ? 's' : ''}</span>
+        </div>
+        <button class="delete-btn" type="button" data-action="remove-subrecipe" data-recipe-id="${subId}">✕</button>
+      </div>`;
+    }).join('');
   }
 
   function saveRecipe() {
@@ -1915,25 +2073,43 @@
       return;
     }
     const wasNew = !editingRecipeId;
-    const newIngredients = editingRecipeIngredients; // closeRecipeEditor() resetea editingRecipeIngredients, guardamos la referencia antes
+    // closeRecipeEditor() resetea editingRecipeIngredients/editingRecipeSubIds,
+    // guardamos las referencias antes de llamarlo.
+    const newIngredients = editingRecipeIngredients;
+    const newSubIds = editingRecipeSubIds;
     let recipeId;
-    let oldIngredients = null;
+    let oldOwnEffective = null;
+    let ancestors = [];
+    const oldEffectiveByAncestor = new Map();
+
     if (editingRecipeId) {
-      const r = recipes.find((x) => x.id === editingRecipeId);
-      oldIngredients = r.ingredients;
+      recipeId = editingRecipeId;
+      const r = recipes.find((x) => x.id === recipeId);
+      oldOwnEffective = getEffectiveIngredients(r); // antes de mutar r
+      ancestors = findAncestorRecipes(recipeId);
+      ancestors.forEach((a) => oldEffectiveByAncestor.set(a.id, getEffectiveIngredients(a)));
       r.name = name;
       r.ingredients = newIngredients;
-      recipeId = r.id;
+      r.subRecipeIds = newSubIds;
     } else {
       recipeId = uid();
-      recipes.push({ id: recipeId, name, ingredients: newIngredients });
+      recipes.push({ id: recipeId, name, ingredients: newIngredients, subRecipeIds: newSubIds });
     }
     saveRecipesData();
     closeRecipeEditor();
     if (wasNew && pickerDayKey) {
       assignRecipeToDay(pickerDayKey, recipeId);
     } else {
-      if (!wasNew) resyncActiveRecipeIngredients(recipeId, oldIngredients, newIngredients);
+      if (!wasNew) {
+        const r = recipes.find((x) => x.id === recipeId);
+        resyncByEffectiveDiff(recipeId, oldOwnEffective, getEffectiveIngredients(r));
+        // si esta receta se usa como subreceta de otras, propagar el cambio
+        // hacia arriba también en cualquiera que esté activa.
+        ancestors.forEach((a) => {
+          const ar = recipes.find((x) => x.id === a.id);
+          if (ar) resyncByEffectiveDiff(a.id, oldEffectiveByAncestor.get(a.id), getEffectiveIngredients(ar));
+        });
+      }
       renderRecipePickerList();
       renderMenu();
     }
@@ -1944,6 +2120,10 @@
   document.getElementById('recipesLibraryBtn').addEventListener('click', () => openRecipePicker(null));
   document.getElementById('newRecipeBtn').addEventListener('click', () => openRecipeEditor(null));
   document.getElementById('recipeSaveBtn').addEventListener('click', saveRecipe);
+  document.getElementById('addSubrecipeBtn').addEventListener('click', openSubrecipePicker);
+  document.getElementById('subrecipePickerOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'subrecipePickerOverlay') closeSubrecipePicker();
+  });
 
   document.getElementById('recipePickerOverlay').addEventListener('click', (e) => {
     if (e.target.id === 'recipePickerOverlay') closeRecipePicker();
@@ -2134,6 +2314,14 @@
     } else if (action === 'remove-recipe-ingredient') {
       editingRecipeIngredients = editingRecipeIngredients.filter((i) => i.id !== target.dataset.ingId);
       renderEditorIngredients();
+    } else if (action === 'pick-subrecipe') {
+      const subId = target.dataset.recipeId;
+      if (!editingRecipeSubIds.includes(subId)) editingRecipeSubIds.push(subId);
+      closeSubrecipePicker();
+      renderEditorSubrecipes();
+    } else if (action === 'remove-subrecipe') {
+      editingRecipeSubIds = editingRecipeSubIds.filter((id) => id !== target.dataset.recipeId);
+      renderEditorSubrecipes();
     }
   }
 
@@ -2143,6 +2331,8 @@
   document.getElementById('menuBody').addEventListener('click', handleDelegatedClick);
   document.getElementById('recipePickerList').addEventListener('click', handleDelegatedClick);
   document.getElementById('recipeIngList').addEventListener('click', handleDelegatedClick);
+  document.getElementById('subrecipeList').addEventListener('click', handleDelegatedClick);
+  document.getElementById('subrecipePickerList').addEventListener('click', handleDelegatedClick);
 
   // Refuerzo táctil: algunos WebViews de Android disparan click con demora
   // o lo pierden en scroll rápido. touchend + click combinados sin duplicar.
