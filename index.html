@@ -1059,7 +1059,7 @@
 <div class="modal-overlay" id="recipePickerOverlay">
   <div class="modal">
     <div class="modal-title" id="recipePickerTitle">Menú</div>
-    <button class="modal-save-btn" id="newRecipeBtn" type="button">+ Nueva receta</button>
+    <button class="modal-save-btn" id="newRecipeBtn" type="button">+ Nuevo menú</button>
     <div class="picker-actions">
       <button class="toggle-btn" id="exportRecipesBtn" type="button">⬇️ Exportar</button>
       <button class="toggle-btn" id="importRecipesBtn" type="button">⬆️ Importar</button>
@@ -1071,7 +1071,7 @@
 
 <div class="modal-overlay" id="recipeEditorOverlay">
   <div class="modal">
-    <div class="modal-title">Receta</div>
+    <div class="modal-title" id="recipeEditorTitle">Receta</div>
     <input type="text" id="recipeNameInput" class="modal-input" placeholder="Nombre de la receta (ej: Milanesas con puré)" autocomplete="off" autocorrect="off">
     <div class="modal-subtitle">Ingredientes</div>
     <div class="add-row" id="recipeIngRow">
@@ -1187,7 +1187,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.2.0';
+  const APP_VERSION = '2.2.1';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1238,6 +1238,9 @@
     '2.2.0': [
       'Separamos bien los conceptos: en el Menú Semanal ahora se habla de "menús" (agregar menú, sin menús para este día), y "receta" queda reservado para la ficha con ingredientes y pasos que armás en la sección Recetas.',
       'Agregamos exportar/importar también directo desde la pantalla Recetas (antes solo estaba adentro del Menú Semanal).'
+    ],
+    '2.2.1': [
+      'Terminaron de quedar sueltos "+ Nueva receta" y el formulario "Receta" del picker del calendario — ahora dicen "+ Nuevo menú" y "Menú", consistente con el resto de esa pantalla.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1454,6 +1457,7 @@
   let editingRecipeId = null; // id de la receta que se está editando (null = nueva)
   let editingRecipeIngredients = []; // ingredientes de la receta que se está editando
   let editingRecipeSubIds = []; // ids de subrecetas de la receta que se está editando
+  let editingRecipeContext = 'menu'; // 'menu' | 'receta' — desde dónde se abrió el editor, cambia el texto
 
   // ---- Pantalla Recetas: detalle con instrucciones de cocina ----
   const PROCESS_ACTIONS = [
@@ -2122,7 +2126,7 @@
   function renderRecipePickerList() {
     const list = document.getElementById('recipePickerList');
     if (recipes.length === 0) {
-      list.innerHTML = '<div class="empty" style="padding:24px 0;">Todavía no creaste ninguna receta.<br>Tocá "+ Nueva receta" para armar la primera.</div>';
+      list.innerHTML = '<div class="empty" style="padding:24px 0;">Todavía no creaste ningún menú.<br>Tocá "+ Nuevo menú" para armar el primero.</div>';
       return;
     }
     const bodyAction = pickerDayKey ? 'assign-recipe' : 'edit-recipe';
@@ -2658,7 +2662,7 @@
   document.getElementById('recetasBackBtn').addEventListener('click', closeRecetas);
   document.getElementById('recipeDetailBackBtn').addEventListener('click', closeRecipeDetail);
   document.getElementById('recipeDetailEditBtn').addEventListener('click', () => {
-    if (openRecipeDetailId) openRecipeEditor(openRecipeDetailId);
+    if (openRecipeDetailId) openRecipeEditor(openRecipeDetailId, 'receta');
   });
   document.getElementById('buildStepBtn').addEventListener('click', () => openStepConfig(null));
   document.getElementById('stepConfigSaveBtn').addEventListener('click', saveStepConfig);
@@ -2690,8 +2694,13 @@
   });
 
   // ---- Editor de receta (nombre + ingredientes indexados) ----
-  function openRecipeEditor(recipeId) {
+  // context: 'menu' (se abrió desde el calendario / picker "Menú") o 'receta'
+  // (se abrió desde la ficha de una receta en la sección Recetas) — mismo
+  // editor de nombre+ingredientes+subrecetas por dentro, pero el texto se
+  // adapta para no mezclar los dos conceptos.
+  function openRecipeEditor(recipeId, context) {
     editingRecipeId = recipeId || null;
+    editingRecipeContext = context === 'receta' ? 'receta' : 'menu';
     if (editingRecipeId) {
       const r = recipes.find((x) => x.id === editingRecipeId);
       document.getElementById('recipeNameInput').value = r.name;
@@ -2702,6 +2711,12 @@
       editingRecipeIngredients = [];
       editingRecipeSubIds = [];
     }
+    const isMenu = editingRecipeContext === 'menu';
+    document.getElementById('recipeEditorTitle').textContent = isMenu ? 'Menú' : 'Receta';
+    document.getElementById('recipeNameInput').placeholder = isMenu
+      ? 'Nombre del menú (ej: Milanesas con puré)'
+      : 'Nombre de la receta (ej: Milanesas con puré)';
+    document.getElementById('recipeSaveBtn').textContent = isMenu ? 'Guardar menú' : 'Guardar receta';
     document.getElementById('recipeIngInput').value = '';
     renderEditorIngredients();
     renderEditorSubrecipes();
