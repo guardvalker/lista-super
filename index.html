@@ -1095,6 +1095,7 @@
       <button class="clear-btn" id="accountLeaveBtn" type="button">Salir de la lista</button>
     </div>
 
+    <button class="clear-btn" id="accountLogoutBtn" type="button" style="display:none;">Cerrar sesión</button>
     <div class="modal-subtitle" id="accountMsg" style="display:none;"></div>
     <button class="clear-btn" id="accountCloseBtn" type="button">Cerrar</button>
   </div>
@@ -1322,7 +1323,8 @@
     ],
     '2.3.5': [
       'Cambiamos el login: en vez de link mágico ahora llega un código de 6 dígitos por email para escribir directo en la app — así funciona siempre, incluso cuando el celular abre el mail en un navegador distinto al que tiene la app instalada (típico en iPhone).',
-      'Si volvés a iniciar sesión y el dispositivo ya no recuerda a qué lista compartida pertenecías (por ej. si se borraron los datos del sitio), ahora la recupera sola.'
+      'Si volvés a iniciar sesión y el dispositivo ya no recuerda a qué lista compartida pertenecías (por ej. si se borraron los datos del sitio), ahora la recupera sola.',
+      'Nuevo botón "Cerrar sesión" en Cuenta y sincronización.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2115,6 +2117,8 @@
     document.getElementById('accountNoLista').style.display = 'none';
     document.getElementById('accountHasLista').style.display = 'none';
 
+    document.getElementById('accountLogoutBtn').style.display = user ? '' : 'none';
+
     if (!user) {
       document.getElementById('accountLoggedOut').style.display = '';
       if (window.Sync.pendingJoinCodeFromUrl()) {
@@ -2232,6 +2236,11 @@
   document.getElementById('accountLeaveBtn').addEventListener('click', async () => {
     if (!confirm('¿Salir de esta lista compartida? Tus datos locales quedan intactos, pero dejás de sincronizar con los demás.')) return;
     await window.Sync.leaveLista();
+    renderAccountModal();
+  });
+
+  document.getElementById('accountLogoutBtn').addEventListener('click', async () => {
+    await window.Sync.signOut();
     renderAccountModal();
   });
 

@@ -76,6 +76,12 @@ window.Sync = (function () {
     if (!sb) return;
     unsubscribeRealtime();
     await sb.auth.signOut();
+    listaId = null;
+    listaInfo = null;
+    lastSyncedItems = null;
+    lastSyncedRecipeSig = null;
+    lastSyncedPlanFlat = null;
+    cb.onListaChange && cb.onListaChange(null);
   }
 
   function getUser() {
