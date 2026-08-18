@@ -289,12 +289,14 @@
     background: var(--accent-dim);
   }
   .clear-btn {
-    background: none;
-    border: none;
+    background: var(--card);
+    border: 1px solid var(--danger);
     color: var(--danger);
     font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    padding: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
     white-space: nowrap;
   }
   .clear-btn:active { opacity: 0.7; }
@@ -1327,6 +1329,7 @@
       'Si volvés a iniciar sesión y el dispositivo ya no recuerda a qué lista compartida pertenecías (por ej. si se borraron los datos del sitio), ahora la recupera sola.',
       'Nuevo botón "Cerrar sesión" en Cuenta y sincronización.',
       'Nuevo botón "✏️ Editar nombre" para renombrar la lista compartida — cualquier integrante puede usarlo.',
+      'Los botones rojos (Borrar tachados, Salir de la lista, Cerrar sesión) ahora tienen borde y fondo como el resto, para que no se confundan con mensajes de texto.',
       'Arreglamos que a veces, justo después de escribir el código de acceso, no aparecieran los botones para crear/unirte a una lista hasta cerrar y volver a abrir el modal de Cuenta.'
     ]
   };
