@@ -1981,7 +1981,7 @@
   // ---- Versión instalada / buscar actualización ----
   function renderVersionHistory() {
     document.getElementById('versionNumCurrent').textContent = APP_VERSION;
-    const versions = Object.keys(CHANGELOG).reverse(); // más nueva primero
+    const versions = Object.keys(CHANGELOG).reverse().slice(0, 3); // más nueva primero, solo últimas 3
     document.getElementById('versionHistory').innerHTML = versions.map((v) => `
       <div class="version-history-group">
         <div class="v">${v}</div>
