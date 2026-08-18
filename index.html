@@ -612,26 +612,29 @@
     font-size: 14px;
   }
   .alpha-index {
-    width: 26px;
-    min-width: 26px;
+    width: 28px;
+    min-width: 28px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 8px 2px;
-    gap: 1px;
+    justify-content: space-between;
+    padding: 4px 2px;
     overflow-y: auto;
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
   .alpha-index::-webkit-scrollbar { display: none; }
   .alpha-index-letter {
-    font-size: 10px;
+    font-size: 12.5px;
     font-weight: 800;
     color: var(--text-dim);
     cursor: pointer;
     padding: 1.5px 0;
     width: 100%;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     border-radius: 4px;
     background: none;
@@ -1238,7 +1241,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.3.2';
+  const APP_VERSION = '2.3.3';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1305,6 +1308,9 @@
     ],
     '2.3.2': [
       'Arreglamos los íconos de Exportar/Importar recetas, que estaban al revés (⬆️/⬇️ intercambiados) tanto en el picker del Menú Semanal como en la pantalla de Recetas.'
+    ],
+    '2.3.3': [
+      'La guía de letras de Recetas ahora ocupa todo el alto disponible sin dejar espacio vacío arriba/abajo, y las letras quedaron un poco más grandes.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
