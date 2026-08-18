@@ -639,6 +639,8 @@
     font-family: inherit;
   }
   .alpha-index-letter:active { background: var(--accent-dim); color: var(--accent); }
+  .alpha-index-letter.is-empty { opacity: 0.35; cursor: default; }
+  .alpha-index-letter.is-empty:active { background: none; color: var(--text-dim); }
 
   /* ---- Detalle de receta: grilla de ingredientes seleccionables ---- */
   .subtitle-hint { font-weight: 400; text-transform: none; letter-spacing: normal; color: var(--text-dim); }
@@ -694,6 +696,7 @@
   .instruction-block-body { flex: 1; display: flex; flex-direction: column; line-height: 1.4; min-width: 0; }
   .instruction-block-step { font-size: 11px; font-weight: 800; color: var(--accent-2); text-transform: uppercase; letter-spacing: 0.3px; }
   .instruction-block-text { font-size: 13.5px; }
+  .instruction-block-note { font-size: 12px; color: var(--text-dim); font-style: italic; margin-top: 2px; }
   .instruction-blocks-empty { font-size: 12.5px; color: var(--text-dim); margin-bottom: 18px; }
 
   /* modal de configurar paso: ingredientes elegidos con cantidad opcional */
@@ -730,34 +733,18 @@
   }
   .unit-toggle-btn.active { background: var(--accent-dim); color: var(--accent); }
   #recipeStepsSummary { margin-bottom: 14px; }
-  .summary-step-group {
+  .step-summary-text {
     background: var(--card-2);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 12px 14px;
-    margin-bottom: 10px;
-  }
-  .summary-step-heading {
-    font-size: 11.5px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: var(--accent);
-    margin-bottom: 6px;
-  }
-  .summary-step-line {
+    margin: 0;
+    font-family: inherit;
     font-size: 13.5px;
     line-height: 1.6;
-    padding-left: 14px;
-    position: relative;
-    margin-bottom: 4px;
-  }
-  .summary-step-line:last-child { margin-bottom: 0; }
-  .summary-step-line::before {
-    content: '•';
-    position: absolute;
-    left: 0;
-    color: var(--accent-2);
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
   }
   .step-summary-empty { color: var(--text-dim); font-size: 13px; }
   #recipeIngRow { margin-bottom: 12px; }
@@ -1129,7 +1116,7 @@
       <div class="suggestions" id="recipeIngSuggestions"></div>
     </div>
     <div id="recipeIngList" class="ingredient-list"></div>
-    <div class="modal-subtitle">Subrecetas (opcional)</div>
+    <div class="modal-subtitle" id="subrecipesSubtitle">Subrecetas (opcional)</div>
     <button class="toggle-btn" id="addSubrecipeBtn" type="button">+ Agregar subreceta</button>
     <div id="subrecipeList" class="subrecipe-list"></div>
     <button class="modal-save-btn" id="recipeSaveBtn" type="button">Guardar receta</button>
@@ -1138,7 +1125,7 @@
 
 <div class="modal-overlay" id="subrecipePickerOverlay">
   <div class="modal">
-    <div class="modal-title">Agregar subreceta</div>
+    <div class="modal-title" id="subrecipePickerTitle">Agregar subreceta</div>
     <div id="subrecipePickerList"></div>
   </div>
 </div>
@@ -1215,6 +1202,15 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="stepNoteOverlay">
+  <div class="modal">
+    <div class="modal-title">Nota del paso</div>
+    <div class="modal-subtitle">Algo para recordar la próxima vez (ej: "no te pases de tiempo, se quema fácil")</div>
+    <textarea id="stepNoteInput" class="modal-input" rows="4" placeholder="Escribí la nota acá..."></textarea>
+    <button class="modal-save-btn" id="stepNoteSaveBtn" type="button">Guardar nota</button>
+  </div>
+</div>
+
 <script src="vendor/supabase.js"></script>
 <script src="config.js"></script>
 <script src="sync.js"></script>
@@ -1238,10 +1234,11 @@
     edit: `<svg ${ICON_SVG_ATTRS}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>`,
     cloud: `<svg ${ICON_SVG_ATTRS}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>`,
     cloudCheck: `<svg ${ICON_SVG_ATTRS}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M9 15l1.5 1.5L14 13"/></svg>`,
+    note: `<svg ${ICON_SVG_ATTRS}><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>`,
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.3.0';
+  const APP_VERSION = '2.3.1';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1299,6 +1296,12 @@
     '2.3.0': [
       'Nuevo: sincronización opcional entre dispositivos. Con el botón ☁️ de arriba podés iniciar sesión (link mágico por email) y crear o unirte a una lista compartida — items, recetas y menú semanal se sincronizan solos, en vivo, entre todos los que la integran.',
       'Si no iniciás sesión, la app sigue funcionando exactamente igual que siempre, 100% en este dispositivo.'
+    ],
+    '2.3.1': [
+      'Arreglamos que dijera "subreceta" en vez de "submenú" al crear un menú desde el Menú Semanal.',
+      'La guía de letras de Recetas ahora siempre muestra la A-Z completa, apagada en las letras sin recetas todavía.',
+      'El resumen de pasos de una receta ahora se ve directamente en el mismo formato que se copia, sin una presentación separada.',
+      'Nuevo botón de notas (📝) al lado de editar en cada paso armado, para anotar algo como "no te pases de tiempo" — la nota también viaja en el resumen copiable.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2393,6 +2396,8 @@
   // subreceta desde el editor no pise el estado de "Menú"/"asignar al
   // día" que pueda estar abierto detrás.
   function openSubrecipePicker() {
+    const isMenu = editingRecipeContext === 'menu';
+    document.getElementById('subrecipePickerTitle').textContent = isMenu ? 'Agregar submenú' : 'Agregar subreceta';
     renderSubrecipePickerList();
     const overlay = document.getElementById('subrecipePickerOverlay');
     document.body.appendChild(overlay); // queda arriba del editor de receta
@@ -2412,7 +2417,8 @@
       return true;
     });
     if (candidates.length === 0) {
-      list.innerHTML = '<div class="empty" style="padding:24px 0;">No hay otra receta disponible para usar como subreceta acá.</div>';
+      const label = editingRecipeContext === 'menu' ? 'submenú' : 'subreceta';
+      list.innerHTML = `<div class="empty" style="padding:24px 0;">No hay otra receta disponible para usar como ${label} acá.</div>`;
       return;
     }
     list.innerHTML = candidates.map((r) => {
@@ -2632,10 +2638,16 @@
       }).join('')}
     `).join('');
 
-    // guía dinámica: solo letras con al menos una receta, tocarla scrollea a esa sección
-    indexEl.innerHTML = letters.map((letter) =>
-      `<button type="button" class="alpha-index-letter" data-action="jump-to-letter" data-letter="${letter}">${letter}</button>`
-    ).join('');
+    // guía completa A-Z siempre visible: las letras con receta quedan con el
+    // color activo y tocarlas scrollea a esa sección; el resto queda apagada
+    // y deshabilitada. Letras fuera de A-Z (nombres con números/símbolos al
+    // inicio) se agregan al final, solo si hay alguna receta ahí.
+    const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    const extraLetters = letters.filter((l) => !ALPHABET.includes(l));
+    indexEl.innerHTML = [...ALPHABET, ...extraLetters].map((letter) => {
+      const has = groups.has(letter);
+      return `<button type="button" class="alpha-index-letter${has ? '' : ' is-empty'}" data-action="jump-to-letter" data-letter="${letter}"${has ? '' : ' disabled'}>${letter}</button>`;
+    }).join('');
   }
 
   // ---- Pantalla de detalle de receta: ingredientes tocables + resumen ----
@@ -2707,7 +2719,9 @@
         <div class="instruction-block-body">
           <span class="instruction-block-step">Paso ${block.stepNumber}</span>
           <span class="instruction-block-text">${escapeHtml(names)}${actionsLabel ? ' — ' + escapeHtml(actionsLabel) : ''}${timeLabel}</span>
+          ${block.notes ? `<span class="instruction-block-note">📝 ${escapeHtml(block.notes)}</span>` : ''}
         </div>
+        <button class="edit-btn" type="button" data-action="note-instruction-block" data-block-id="${block.id}" aria-label="Agregar nota">${ICONS.note}</button>
         <button class="edit-btn" type="button" data-action="edit-instruction-block" data-block-id="${block.id}">${ICONS.edit}</button>
         <button class="delete-btn" type="button" data-action="delete-instruction-block" data-block-id="${block.id}">✕</button>
       </div>`;
@@ -2740,26 +2754,29 @@
           .join(', ');
         const actionsLabel = (block.actions || []).map((id) => actionById[id] && actionById[id].label.toLowerCase()).filter(Boolean).join(', ');
         const timeLabel = (block.timeValue != null && block.timeValue !== '') ? ` (${block.timeValue} ${block.timeUnit === 'h' ? 'h' : 'min'})` : '';
-        return `${itemTexts}${actionsLabel ? ' — ' + actionsLabel : ''}${timeLabel}`;
+        const noteLabel = block.notes ? ` [${block.notes}]` : '';
+        return `${itemTexts}${actionsLabel ? ' — ' + actionsLabel : ''}${timeLabel}${noteLabel}`;
       }),
     }));
+  }
+
+  // Mismo texto plano que arma copyStepsSummaryBtn — el resumen en pantalla
+  // muestra directamente el formato que se va a copiar, sin una
+  // presentación visual distinta.
+  function buildStepsSummaryText(recipe) {
+    const groups = buildStepsSummaryLines(recipe);
+    if (groups.length === 0) return '';
+    return `${recipe.name}\n\n${groups.map((g) => `Paso ${g.step}\n${g.lines.map((l) => `• ${l}`).join('\n')}`).join('\n\n')}`;
   }
 
   function renderStepsSummary() {
     const recipe = recipes.find((r) => r.id === openRecipeDetailId);
     const box = document.getElementById('recipeStepsSummary');
     if (!recipe) return;
-    const groups = buildStepsSummaryLines(recipe);
-    if (groups.length === 0) {
-      box.innerHTML = '<span class="step-summary-empty">Armá algún paso arriba para ver el resumen acá.</span>';
-      return;
-    }
-    box.innerHTML = groups.map((g) => `
-      <div class="summary-step-group">
-        <div class="summary-step-heading">Paso ${g.step}</div>
-        ${g.lines.map((l) => `<div class="summary-step-line">${escapeHtml(l)}</div>`).join('')}
-      </div>
-    `).join('');
+    const text = buildStepsSummaryText(recipe);
+    box.innerHTML = text
+      ? `<pre class="step-summary-text">${escapeHtml(text)}</pre>`
+      : '<span class="step-summary-empty">Armá algún paso arriba para ver el resumen acá.</span>';
   }
 
   // ---- Selección de ingredientes + modal de armar/editar paso ----
@@ -2901,6 +2918,37 @@
     renderRecipeDetail();
   }
 
+  // ---- Nota de un paso armado ----
+  let editingNoteBlockId = null;
+
+  function openStepNote(blockId) {
+    const recipe = recipes.find((r) => r.id === openRecipeDetailId);
+    if (!recipe) return;
+    const block = (recipe.instructionBlocks || []).find((b) => b.id === blockId);
+    if (!block) return;
+    editingNoteBlockId = blockId;
+    document.getElementById('stepNoteInput').value = block.notes || '';
+    document.getElementById('stepNoteOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('stepNoteInput').focus(), 50);
+  }
+
+  function closeStepNote() {
+    document.getElementById('stepNoteOverlay').classList.remove('show');
+    editingNoteBlockId = null;
+  }
+
+  function saveStepNote() {
+    const recipe = recipes.find((r) => r.id === openRecipeDetailId);
+    if (!recipe || !editingNoteBlockId) return closeStepNote();
+    const block = (recipe.instructionBlocks || []).find((b) => b.id === editingNoteBlockId);
+    if (!block) return closeStepNote();
+    const text = document.getElementById('stepNoteInput').value.trim();
+    if (text) block.notes = text; else delete block.notes;
+    saveRecipesData();
+    closeStepNote();
+    renderRecipeDetail();
+  }
+
   document.getElementById('recetasBtn').addEventListener('click', openRecetas);
   document.getElementById('recetasBackBtn').addEventListener('click', closeRecetas);
   document.getElementById('recipeDetailBackBtn').addEventListener('click', closeRecipeDetail);
@@ -2912,6 +2960,10 @@
   document.getElementById('stepConfigOverlay').addEventListener('click', (e) => {
     if (e.target.id === 'stepConfigOverlay') closeStepConfig();
   });
+  document.getElementById('stepNoteSaveBtn').addEventListener('click', saveStepNote);
+  document.getElementById('stepNoteOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'stepNoteOverlay') closeStepNote();
+  });
   document.getElementById('stepTimeUnitToggle').addEventListener('click', (e) => {
     const btn = e.target.closest('.unit-toggle-btn');
     if (btn) setStepTimeUnitToggle(btn.dataset.unit);
@@ -2919,10 +2971,7 @@
   document.getElementById('copyStepsSummaryBtn').addEventListener('click', () => {
     const recipe = recipes.find((r) => r.id === openRecipeDetailId);
     if (!recipe) return;
-    const groups = buildStepsSummaryLines(recipe);
-    const text = groups.length
-      ? `${recipe.name}\n\n${groups.map((g) => `Paso ${g.step}\n${g.lines.map((l) => `• ${l}`).join('\n')}`).join('\n\n')}`
-      : recipe.name;
+    const text = buildStepsSummaryText(recipe) || recipe.name;
     const btn = document.getElementById('copyStepsSummaryBtn');
     const restoreLabel = btn.textContent;
     const onCopied = () => {
@@ -2960,6 +3009,8 @@
       ? 'Nombre del menú (ej: Milanesas con puré)'
       : 'Nombre de la receta (ej: Milanesas con puré)';
     document.getElementById('recipeSaveBtn').textContent = isMenu ? 'Guardar menú' : 'Guardar receta';
+    document.getElementById('subrecipesSubtitle').textContent = isMenu ? 'Submenús (opcional)' : 'Subrecetas (opcional)';
+    document.getElementById('addSubrecipeBtn').textContent = isMenu ? '+ Agregar submenú' : '+ Agregar subreceta';
     document.getElementById('recipeIngInput').value = '';
     renderEditorIngredients();
     renderEditorSubrecipes();
@@ -2995,7 +3046,9 @@
   function renderEditorSubrecipes() {
     const box = document.getElementById('subrecipeList');
     if (editingRecipeSubIds.length === 0) {
-      box.innerHTML = '<div class="ingredient-empty">Sin subrecetas.</div>';
+      box.innerHTML = editingRecipeContext === 'menu'
+        ? '<div class="ingredient-empty">Sin submenús.</div>'
+        : '<div class="ingredient-empty">Sin subrecetas.</div>';
       return;
     }
     box.innerHTML = editingRecipeSubIds.map((subId) => {
@@ -3286,6 +3339,8 @@
       toggleIngredientSelection(target.dataset.ingId);
     } else if (action === 'edit-instruction-block') {
       openStepConfig(target.dataset.blockId);
+    } else if (action === 'note-instruction-block') {
+      openStepNote(target.dataset.blockId);
     } else if (action === 'delete-instruction-block') {
       deleteInstructionBlock(target.dataset.blockId);
     } else if (action === 'toggle-step-action') {
