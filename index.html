@@ -1097,8 +1097,8 @@
     <div class="modal-title" id="recipePickerTitle">Menú</div>
     <button class="modal-save-btn" id="newRecipeBtn" type="button">+ Nuevo menú</button>
     <div class="picker-actions">
-      <button class="toggle-btn" id="exportRecipesBtn" type="button">⬇️ Exportar</button>
-      <button class="toggle-btn" id="importRecipesBtn" type="button">⬆️ Importar</button>
+      <button class="toggle-btn" id="exportRecipesBtn" type="button">⬆️ Exportar</button>
+      <button class="toggle-btn" id="importRecipesBtn" type="button">⬇️ Importar</button>
       <input type="file" id="importRecipesFile" accept="application/json" class="hidden-file-input">
     </div>
     <div id="recipePickerList"></div>
@@ -1149,8 +1149,8 @@
       <div class="screen-header-spacer"></div>
     </div>
     <div class="picker-actions recetas-toolbar">
-      <button class="toggle-btn" id="recetasExportBtn" type="button">⬇️ Exportar</button>
-      <button class="toggle-btn" id="recetasImportBtn" type="button">⬆️ Importar</button>
+      <button class="toggle-btn" id="recetasExportBtn" type="button">⬆️ Exportar</button>
+      <button class="toggle-btn" id="recetasImportBtn" type="button">⬇️ Importar</button>
     </div>
     <div class="recetas-body-row">
       <div class="recetas-list" id="recetasList"></div>
@@ -1238,7 +1238,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.3.1';
+  const APP_VERSION = '2.3.2';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1302,6 +1302,9 @@
       'La guía de letras de Recetas ahora siempre muestra la A-Z completa, apagada en las letras sin recetas todavía.',
       'El resumen de pasos de una receta ahora se ve directamente en el mismo formato que se copia, sin una presentación separada.',
       'Nuevo botón de notas (📝) al lado de editar en cada paso armado, para anotar algo como "no te pases de tiempo" — la nota también viaja en el resumen copiable.'
+    ],
+    '2.3.2': [
+      'Arreglamos los íconos de Exportar/Importar recetas, que estaban al revés (⬆️/⬇️ intercambiados) tanto en el picker del Menú Semanal como en la pantalla de Recetas.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
