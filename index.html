@@ -172,6 +172,7 @@
     align-items: center;
     justify-content: center;
     box-shadow: var(--shadow);
+    -webkit-tap-highlight-color: transparent;
   }
   .theme-toggle:active { transform: scale(0.92); }
   .subtitle {
@@ -1251,7 +1252,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.3.7';
+  const APP_VERSION = '2.3.8';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1341,6 +1342,9 @@
     ],
     '2.3.7': [
       'Arreglamos que a veces la lista compartida quedara mostrando el nombre como "..." sin poder hacer nada: pasaba cuando el dispositivo tenía guardado el id de una lista de la que esa cuenta en realidad no es miembro (ej. usar la app con otro email en el mismo celular). Ahora en ese caso se desvincula sola y vuelve a la pantalla de crear/unirse.'
+    ],
+    '2.3.8': [
+      'Arreglamos que al tocar los botones de arriba (Recetas, Menú semanal, volver, etc.) quedara un recuadro verde marcado que se notaba de más en la pantalla siguiente.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
