@@ -144,7 +144,7 @@ to authenticated;
 
 -- ls_listas: ver las que integrás; crear libre (te agregás como miembro
 -- después, desde el cliente, en la misma operación de "crear lista");
--- solo quien la creó puede editar/borrar.
+-- cualquier miembro puede renombrarla; solo quien la creó puede borrarla.
 create policy "ls_listas_select" on ls_listas
   for select using (ls_is_member(id));
 
@@ -152,7 +152,7 @@ create policy "ls_listas_insert" on ls_listas
   for insert with check (creado_por = auth.uid());
 
 create policy "ls_listas_update" on ls_listas
-  for update using (creado_por = auth.uid());
+  for update using (ls_is_member(id));
 
 create policy "ls_listas_delete" on ls_listas
   for delete using (creado_por = auth.uid());
