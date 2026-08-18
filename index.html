@@ -1073,8 +1073,8 @@
       <input type="email" id="accountEmailInput" class="modal-input" placeholder="tu@email.com" autocomplete="email">
       <button class="modal-save-btn" id="accountSendLinkBtn" type="button">Enviar código</button>
       <div id="accountOtpStep" style="display:none;">
-        <div class="modal-subtitle">Ingresá el código de 6 dígitos que te llegó por email</div>
-        <input type="text" id="accountOtpInput" class="modal-input" placeholder="123456" inputmode="numeric" autocomplete="one-time-code" maxlength="6">
+        <div class="modal-subtitle">Ingresá el código que te llegó por email</div>
+        <input type="text" id="accountOtpInput" class="modal-input" placeholder="12345678" inputmode="numeric" autocomplete="one-time-code" maxlength="12">
         <button class="modal-save-btn" id="accountVerifyOtpBtn" type="button">Confirmar código</button>
       </div>
     </div>
@@ -1322,7 +1322,7 @@
       'Arreglamos que "Crear lista compartida" fallara con un error de seguridad la primera vez que se creaba una lista.'
     ],
     '2.3.5': [
-      'Cambiamos el login: en vez de link mágico ahora llega un código de 6 dígitos por email para escribir directo en la app — así funciona siempre, incluso cuando el celular abre el mail en un navegador distinto al que tiene la app instalada (típico en iPhone).',
+      'Cambiamos el login: en vez de link mágico ahora llega un código por email para escribir directo en la app — así funciona siempre, incluso cuando el celular abre el mail en un navegador distinto al que tiene la app instalada (típico en iPhone).',
       'Si volvés a iniciar sesión y el dispositivo ya no recuerda a qué lista compartida pertenecías (por ej. si se borraron los datos del sitio), ahora la recupera sola.',
       'Nuevo botón "Cerrar sesión" en Cuenta y sincronización.'
     ]
@@ -2176,7 +2176,7 @@
       await window.Sync.sendOtp(email);
       document.getElementById('accountOtpStep').style.display = '';
       document.getElementById('accountOtpInput').focus();
-      accountMsg('Listo, revisá tu email y escribí el código de 6 dígitos.', false);
+      accountMsg('Listo, revisá tu email y escribí el código.', false);
     } catch (err) {
       accountMsg(err.message || 'No se pudo enviar el código', true);
     }
