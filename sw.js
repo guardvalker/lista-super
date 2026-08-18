@@ -1,13 +1,16 @@
 // Service Worker - Lista del Super
 // Cachea los archivos de la app la primera vez para que funcione sin internet después.
 
-const CACHE_NAME = 'lista-super-v13';
+const CACHE_NAME = 'lista-super-v14';
 const FILES_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './config.js',
+  './sync.js',
+  './vendor/supabase.js'
 ];
 
 // Instalación: guarda los archivos en caché

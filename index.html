@@ -461,6 +461,21 @@
     font-size: 11px;
   }
 
+  .sync-banner {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 200;
+    background: var(--ctp-red);
+    color: #1e1e2e;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+
   /* Category picker modal (for unrecognized items) */
   .modal-overlay {
     position: fixed;
@@ -992,6 +1007,7 @@
       <div class="header-actions">
         <button class="theme-toggle" id="recetasBtn" type="button" aria-label="Recetas"></button>
         <button class="theme-toggle" id="menuBtn" type="button" aria-label="Menú semanal"></button>
+        <button class="theme-toggle" id="accountBtn" type="button" aria-label="Cuenta y sincronización" style="display:none;"></button>
         <button class="theme-toggle" id="themeToggle" type="button" aria-label="Cambiar tema"></button>
       </div>
     </div>
@@ -1019,6 +1035,8 @@
 
   <footer>Se guarda automáticamente en este dispositivo</footer>
 </div>
+
+<div class="sync-banner" id="syncBanner" style="display:none;"></div>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
@@ -1053,6 +1071,37 @@
     <div class="modal-subtitle">Categoría</div>
     <div class="modal-grid" id="editModalGrid"></div>
     <button class="modal-save-btn" id="editSaveBtn" type="button">Guardar cambios</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="accountOverlay">
+  <div class="modal">
+    <div class="modal-title">Cuenta y sincronización</div>
+
+    <div id="accountLoggedOut">
+      <div class="modal-subtitle">Iniciá sesión para sincronizar tu lista, recetas y menú entre dispositivos</div>
+      <input type="email" id="accountEmailInput" class="modal-input" placeholder="tu@email.com" autocomplete="email">
+      <button class="modal-save-btn" id="accountSendLinkBtn" type="button">Enviar link mágico</button>
+    </div>
+
+    <div id="accountNoLista" style="display:none;">
+      <div class="modal-subtitle" id="accountEmailLabel1"></div>
+      <button class="modal-save-btn" id="accountCreateListaBtn" type="button">Crear lista compartida</button>
+      <div class="modal-subtitle">o unite a una que ya exista</div>
+      <input type="text" id="accountJoinInput" class="modal-input" placeholder="Pegá el link o código de invitación">
+      <button class="modal-save-btn" id="accountJoinBtn" type="button">Unirme</button>
+    </div>
+
+    <div id="accountHasLista" style="display:none;">
+      <div class="modal-subtitle" id="accountEmailLabel2"></div>
+      <div class="modal-subtitle">Lista: <strong id="accountListaNombre"></strong></div>
+      <div id="accountMembersList" class="whatsnew-list"></div>
+      <button class="modal-save-btn" id="accountCopyLinkBtn" type="button">Copiar link para compartir</button>
+      <button class="clear-btn" id="accountLeaveBtn" type="button">Salir de la lista</button>
+    </div>
+
+    <div class="modal-subtitle" id="accountMsg" style="display:none;"></div>
+    <button class="clear-btn" id="accountCloseBtn" type="button">Cerrar</button>
   </div>
 </div>
 
@@ -1166,6 +1215,9 @@
   </div>
 </div>
 
+<script src="vendor/supabase.js"></script>
+<script src="config.js"></script>
+<script src="sync.js"></script>
 <script>
 (function() {
   const STORAGE_KEY = 'lista_super_items';
@@ -1184,10 +1236,12 @@
     list: `<svg ${ICON_SVG_ATTRS}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="0.75" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="0.75" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="0.75" fill="currentColor" stroke="none"/></svg>`,
     back: `<svg ${ICON_SVG_ATTRS}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`,
     edit: `<svg ${ICON_SVG_ATTRS}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>`,
+    cloud: `<svg ${ICON_SVG_ATTRS}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>`,
+    cloudCheck: `<svg ${ICON_SVG_ATTRS}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M9 15l1.5 1.5L14 13"/></svg>`,
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.2.1';
+  const APP_VERSION = '2.3.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1241,6 +1295,10 @@
     ],
     '2.2.1': [
       'Terminaron de quedar sueltos "+ Nueva receta" y el formulario "Receta" del picker del calendario — ahora dicen "+ Nuevo menú" y "Menú", consistente con el resto de esa pantalla.'
+    ],
+    '2.3.0': [
+      'Nuevo: sincronización opcional entre dispositivos. Con el botón ☁️ de arriba podés iniciar sesión (link mágico por email) y crear o unirte a una lista compartida — items, recetas y menú semanal se sincronizan solos, en vivo, entre todos los que la integran.',
+      'Si no iniciás sesión, la app sigue funcionando exactamente igual que siempre, 100% en este dispositivo.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1265,6 +1323,7 @@
     document.getElementById('recetasBackBtn').innerHTML = ICONS.back;
     document.getElementById('recipeDetailBackBtn').innerHTML = ICONS.back;
     document.getElementById('recipeDetailEditBtn').innerHTML = ICONS.edit;
+    document.getElementById('accountBtn').innerHTML = ICONS.cloud;
   }
 
   document.getElementById('themeToggle').addEventListener('click', () => {
@@ -1498,10 +1557,16 @@
     } catch(e) { collapsed = {}; }
   }
 
+  // Cuando se está aplicando un estado que acaba de llegar de Supabase, save()
+  // y compañía deben seguir escribiendo el cache de localStorage pero NO
+  // volver a empujarlo a Supabase (sería un loop push->pull->push infinito).
+  let applyingRemoteUpdate = false;
+
   function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     localStorage.setItem(SHOW_CHECKED_KEY, String(showChecked));
     localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsed));
+    if (!applyingRemoteUpdate && window.Sync) window.Sync.pushItems(items);
   }
 
   function loadRecipes() {
@@ -1515,14 +1580,66 @@
 
   function saveRecipesData() {
     localStorage.setItem(RECIPES_KEY, JSON.stringify(recipes));
+    if (!applyingRemoteUpdate && window.Sync) window.Sync.pushRecipesAndPlan(recipes, weeklyPlan);
   }
 
   function saveWeeklyPlan() {
     localStorage.setItem(WEEKLY_PLAN_KEY, JSON.stringify(weeklyPlan));
+    if (!applyingRemoteUpdate && window.Sync) window.Sync.pushRecipesAndPlan(recipes, weeklyPlan);
+  }
+
+  // recomputeRecipeCounts: item.recipeCount es derivado (cuántas recetas
+  // activas del menú semanal piden ese ingrediente) — no viaja por Supabase
+  // como columna porque cada dispositivo lo incrementa/decrementa localmente
+  // y eso desincroniza. Se reconstruye acá después de cada pull remoto,
+  // mismo criterio de matching que applyRecipeToShoppingList/
+  // removeRecipeFromShoppingList (normalize(text)).
+  function recomputeRecipeCounts() {
+    const counts = new Map();
+    Object.values(weeklyPlan).forEach((entries) => {
+      (entries || []).forEach((entry) => {
+        if (!entry.active) return;
+        const recipe = recipes.find((r) => r.id === entry.recipeId);
+        if (!recipe) return;
+        getEffectiveIngredients(recipe).forEach((ing) => {
+          const key = normalize(ing.text);
+          counts.set(key, (counts.get(key) || 0) + 1);
+        });
+      });
+    });
+    items.forEach((item) => {
+      const c = counts.get(normalize(item.text));
+      if (c) item.recipeCount = c;
+      else delete item.recipeCount;
+    });
+  }
+
+  // Reemplaza items/recipes/weeklyPlan por lo que acaba de llegar de
+  // Supabase (pull inicial o realtime) y lo deja persistido/pintado.
+  function applyRemoteState(remote) {
+    applyingRemoteUpdate = true;
+    try {
+      items = remote.items;
+      recipes = remote.recipes;
+      weeklyPlan = remote.weeklyPlan;
+      recomputeRecipeCounts();
+      save();
+      saveRecipesData();
+      saveWeeklyPlan();
+      render();
+      if (typeof renderMenu === 'function') renderMenu();
+    } finally {
+      applyingRemoteUpdate = false;
+    }
   }
 
   function uid() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    return (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0;
+          return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+        });
   }
 
   function escapeHtml(str) {
@@ -1948,6 +2065,132 @@
     } else if (e.key === 'Escape') {
       closeEditModal();
     }
+  });
+
+  // ---- Cuenta y sincronización ----
+  function openAccountModal() {
+    renderAccountModal();
+    document.getElementById('accountOverlay').classList.add('show');
+  }
+  function closeAccountModal() {
+    document.getElementById('accountOverlay').classList.remove('show');
+    document.getElementById('accountMsg').style.display = 'none';
+  }
+  function accountMsg(text, isError) {
+    const el = document.getElementById('accountMsg');
+    el.textContent = text;
+    el.style.color = isError ? 'var(--ctp-red)' : 'var(--ctp-green)';
+    el.style.display = 'block';
+  }
+
+  async function renderAccountModal() {
+    const user = window.Sync.getUser();
+    document.getElementById('accountLoggedOut').style.display = 'none';
+    document.getElementById('accountNoLista').style.display = 'none';
+    document.getElementById('accountHasLista').style.display = 'none';
+
+    if (!user) {
+      document.getElementById('accountLoggedOut').style.display = '';
+      if (window.Sync.pendingJoinCodeFromUrl()) {
+        accountMsg('Iniciá sesión para unirte a la lista compartida del link.', false);
+      }
+      return;
+    }
+
+    const listaId = window.Sync.getListaId();
+    if (!listaId) {
+      document.getElementById('accountNoLista').style.display = '';
+      document.getElementById('accountEmailLabel1').textContent = `Con la sesión de ${user.email}`;
+      const pending = window.Sync.pendingJoinCodeFromUrl();
+      if (pending) document.getElementById('accountJoinInput').value = pending;
+      return;
+    }
+
+    document.getElementById('accountHasLista').style.display = '';
+    document.getElementById('accountEmailLabel2').textContent = `Con la sesión de ${user.email}`;
+    document.getElementById('accountListaNombre').textContent = window.Sync.getListaNombre() || '...';
+    const members = await window.Sync.getMembers();
+    document.getElementById('accountMembersList').innerHTML =
+      members.map((m) => `<li>${escapeHtml(m.display_name || m.usuario_id)}</li>`).join('');
+  }
+
+  // Tras crear/unirse: si hay datos locales y la lista está vacía, ofrece
+  // subirlos; si ya tiene contenido remoto, ese gana. Si el usuario declina
+  // subir a una lista vacía, no se pisa nada localmente (queda sin pull, se
+  // sincroniza solo a partir del próximo cambio).
+  async function maybeOfferLocalMigration() {
+    const hasLocal = items.length > 0 || recipes.length > 0;
+    if (!hasLocal) return 'no-local';
+    const remoteHasData = await window.Sync.hasRemoteData();
+    if (remoteHasData) return 'remote-wins';
+    if (!confirm(`¿Subir tus ${items.length} items y ${recipes.length} recetas actuales a la lista compartida?`)) {
+      return 'declined';
+    }
+    await window.Sync.uploadLocalData(items, recipes, weeklyPlan);
+    save();
+    saveRecipesData();
+    saveWeeklyPlan();
+    return 'uploaded';
+  }
+
+  document.getElementById('accountBtn').addEventListener('click', openAccountModal);
+  document.getElementById('accountCloseBtn').addEventListener('click', closeAccountModal);
+  document.getElementById('accountOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'accountOverlay') closeAccountModal();
+  });
+
+  document.getElementById('accountSendLinkBtn').addEventListener('click', async () => {
+    const email = document.getElementById('accountEmailInput').value.trim();
+    if (!email) return;
+    try {
+      await window.Sync.sendMagicLink(email);
+      accountMsg('Listo, revisá tu email y tocá el link para entrar.', false);
+    } catch (err) {
+      accountMsg(err.message || 'No se pudo enviar el link', true);
+    }
+  });
+
+  document.getElementById('accountCreateListaBtn').addEventListener('click', async () => {
+    const nombre = (prompt('¿Cómo se llama la lista?', 'Casa') || '').trim() || 'Mi lista';
+    try {
+      await window.Sync.createLista(nombre);
+      const result = await maybeOfferLocalMigration();
+      if (result === 'no-local' || result === 'remote-wins') await window.Sync.pullNow();
+      renderAccountModal();
+    } catch (err) {
+      accountMsg(err.message || 'No se pudo crear la lista', true);
+    }
+  });
+
+  document.getElementById('accountJoinBtn').addEventListener('click', async () => {
+    const input = document.getElementById('accountJoinInput').value;
+    try {
+      await window.Sync.joinLista(input);
+      const result = await maybeOfferLocalMigration();
+      if (result === 'no-local' || result === 'remote-wins') await window.Sync.pullNow();
+      renderAccountModal();
+    } catch (err) {
+      accountMsg(err.message || 'No se pudo unir a esa lista', true);
+    }
+  });
+
+  document.getElementById('accountCopyLinkBtn').addEventListener('click', () => {
+    const link = window.Sync.getShareLink();
+    if (!link) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(
+        () => accountMsg('Link copiado', false),
+        () => accountMsg(link, false)
+      );
+    } else {
+      accountMsg(link, false);
+    }
+  });
+
+  document.getElementById('accountLeaveBtn').addEventListener('click', async () => {
+    if (!confirm('¿Salir de esta lista compartida? Tus datos locales quedan intactos, pero dejás de sincronizar con los demás.')) return;
+    await window.Sync.leaveLista();
+    renderAccountModal();
   });
 
   // ---- Menú semanal ----
@@ -3078,6 +3321,37 @@
   }
   document.getElementById('main').addEventListener('touchend', handleDelegatedTouch, { passive: true });
 
+  // ---- Sync con Supabase (opcional — inerte si config.js no tiene
+  // credenciales reales todavía) ----
+  let syncBannerTimer = null;
+  function showSyncError(msg) {
+    const el = document.getElementById('syncBanner');
+    el.textContent = `⚠️ ${msg}`;
+    el.style.display = 'block';
+    clearTimeout(syncBannerTimer);
+    syncBannerTimer = setTimeout(() => { el.style.display = 'none'; }, 6000);
+  }
+
+  function initSync() {
+    if (!window.Sync || !window.Sync.isConfigured()) return;
+    document.getElementById('accountBtn').style.display = '';
+    window.Sync.init({
+      onAuthChange: () => {
+        document.getElementById('accountBtn').innerHTML =
+          window.Sync.getListaId() ? ICONS.cloudCheck : ICONS.cloud;
+      },
+      onListaChange: () => {
+        document.getElementById('accountBtn').innerHTML =
+          window.Sync.getListaId() ? ICONS.cloudCheck : ICONS.cloud;
+      },
+      onRemoteData: (remote) => applyRemoteState(remote),
+      onMembersChange: () => {
+        if (document.getElementById('accountOverlay').classList.contains('show')) renderAccountModal();
+      },
+      onSyncError: showSyncError,
+    });
+  }
+
   // Init
   applyTheme();
   applyStaticIcons();
@@ -3085,6 +3359,7 @@
   loadRecipes();
   render();
   checkForUpdate();
+  initSync();
 })();
 
 // Registro del Service Worker (habilita funcionamiento offline)
