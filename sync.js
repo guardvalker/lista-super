@@ -131,7 +131,23 @@ window.Sync = (function () {
   async function refreshListaInfo() {
     if (!sb || !listaId) return;
     const { data, error } = await sb.from('ls_listas').select('id, nombre').eq('id', listaId).single();
-    if (!error && data) listaInfo = data;
+    if (error) {
+      // No pudimos leer la lista bajo RLS: esta cuenta no es (o dejó de
+      // ser) miembro — ej. un id de lista guardado localmente de otra
+      // cuenta en el mismo dispositivo, o nos sacaron de la lista.
+      // Desvinculamos en vez de quedar en un estado a medias mostrando
+      // el nombre como "...".
+      unsubscribeRealtime();
+      listaId = null;
+      listaInfo = null;
+      lastSyncedItems = null;
+      lastSyncedRecipeSig = null;
+      lastSyncedPlanFlat = null;
+      clearStoredListaId();
+      cb.onListaChange && cb.onListaChange(null);
+      return;
+    }
+    listaInfo = data;
   }
 
   // .select().single() encadenado al update: si algún día la policy de
@@ -216,6 +232,7 @@ window.Sync = (function () {
     listaId = id;
     setStoredListaId(id);
     await refreshListaInfo();
+    if (!listaId) return; // refreshListaInfo desvinculó: no somos miembro real
     subscribeRealtime();
     cb.onListaChange && cb.onListaChange(listaInfo);
     if (autoPull) await refetchAll();
