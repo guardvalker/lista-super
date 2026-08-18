@@ -174,7 +174,7 @@
     box-shadow: var(--shadow);
     -webkit-tap-highlight-color: transparent;
   }
-  .theme-toggle:active { transform: scale(0.92); }
+  .theme-toggle:active { transform: scale(0.92); background: rgba(166,227,161,0.35); }
   .subtitle {
     color: var(--text-dim);
     font-size: 13px;
@@ -1252,7 +1252,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.3.8';
+  const APP_VERSION = '2.3.9';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1345,6 +1345,9 @@
     ],
     '2.3.8': [
       'Arreglamos que al tocar los botones de arriba (Recetas, Menú semanal, volver, etc.) quedara un recuadro verde marcado que se notaba de más en la pantalla siguiente.'
+    ],
+    '2.3.9': [
+      'Ajustamos el highlight verde al tocar los botones de arriba: se mantiene el feedback visual, pero ahora se apaga justo al soltar el dedo (en vez del efecto nativo del navegador, que se desvanecía a su propio ritmo y quedaba visible en la pantalla siguiente).'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
