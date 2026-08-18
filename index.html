@@ -1071,7 +1071,12 @@
     <div id="accountLoggedOut">
       <div class="modal-subtitle">Iniciá sesión para sincronizar tu lista, recetas y menú entre dispositivos</div>
       <input type="email" id="accountEmailInput" class="modal-input" placeholder="tu@email.com" autocomplete="email">
-      <button class="modal-save-btn" id="accountSendLinkBtn" type="button">Enviar link mágico</button>
+      <button class="modal-save-btn" id="accountSendLinkBtn" type="button">Enviar código</button>
+      <div id="accountOtpStep" style="display:none;">
+        <div class="modal-subtitle">Ingresá el código de 6 dígitos que te llegó por email</div>
+        <input type="text" id="accountOtpInput" class="modal-input" placeholder="123456" inputmode="numeric" autocomplete="one-time-code" maxlength="6">
+        <button class="modal-save-btn" id="accountVerifyOtpBtn" type="button">Confirmar código</button>
+      </div>
     </div>
 
     <div id="accountNoLista" style="display:none;">
@@ -1241,7 +1246,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.3.4';
+  const APP_VERSION = '2.3.5';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1314,6 +1319,10 @@
     ],
     '2.3.4': [
       'Arreglamos que "Crear lista compartida" fallara con un error de seguridad la primera vez que se creaba una lista.'
+    ],
+    '2.3.5': [
+      'Cambiamos el login: en vez de link mágico ahora llega un código de 6 dígitos por email para escribir directo en la app — así funciona siempre, incluso cuando el celular abre el mail en un navegador distinto al que tiene la app instalada (típico en iPhone).',
+      'Si volvés a iniciar sesión y el dispositivo ya no recuerda a qué lista compartida pertenecías (por ej. si se borraron los datos del sitio), ahora la recupera sola.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2084,6 +2093,8 @@
 
   // ---- Cuenta y sincronización ----
   function openAccountModal() {
+    document.getElementById('accountOtpStep').style.display = 'none';
+    document.getElementById('accountOtpInput').value = '';
     renderAccountModal();
     document.getElementById('accountOverlay').classList.add('show');
   }
@@ -2158,10 +2169,26 @@
     const email = document.getElementById('accountEmailInput').value.trim();
     if (!email) return;
     try {
-      await window.Sync.sendMagicLink(email);
-      accountMsg('Listo, revisá tu email y tocá el link para entrar.', false);
+      await window.Sync.sendOtp(email);
+      document.getElementById('accountOtpStep').style.display = '';
+      document.getElementById('accountOtpInput').focus();
+      accountMsg('Listo, revisá tu email y escribí el código de 6 dígitos.', false);
     } catch (err) {
-      accountMsg(err.message || 'No se pudo enviar el link', true);
+      accountMsg(err.message || 'No se pudo enviar el código', true);
+    }
+  });
+
+  document.getElementById('accountVerifyOtpBtn').addEventListener('click', async () => {
+    const email = document.getElementById('accountEmailInput').value.trim();
+    const token = document.getElementById('accountOtpInput').value.trim();
+    if (!email || !token) return;
+    try {
+      await window.Sync.verifyOtp(email, token);
+      document.getElementById('accountOtpStep').style.display = 'none';
+      document.getElementById('accountOtpInput').value = '';
+      renderAccountModal();
+    } catch (err) {
+      accountMsg(err.message || 'Código incorrecto', true);
     }
   });
 

@@ -60,12 +60,15 @@ window.Sync = (function () {
 
   // ---- Auth ----
 
-  async function sendMagicLink(email) {
+  async function sendOtp(email) {
     if (!sb) throw new Error('Supabase no está configurado');
-    const { error } = await sb.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.href },
-    });
+    const { error } = await sb.auth.signInWithOtp({ email });
+    if (error) throw error;
+  }
+
+  async function verifyOtp(email, token) {
+    if (!sb) throw new Error('Supabase no está configurado');
+    const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
     if (error) throw error;
   }
 
@@ -86,6 +89,22 @@ window.Sync = (function () {
   function getShareLink() {
     if (!listaId) return null;
     return `${window.location.origin}${window.location.pathname}?lista=${listaId}`;
+  }
+
+  // Si se perdió el localStorage (ej. se borraron los datos del sitio) pero
+  // la sesión sigue viva o se vuelve a loguear, la membresía sobrevive en
+  // Supabase — la recuperamos de ahí en vez de pedir de nuevo el link de
+  // invitación.
+  async function findMyListaId() {
+    if (!sb || !currentUser) return null;
+    const { data, error } = await sb
+      .from('ls_miembros')
+      .select('lista_id')
+      .eq('usuario_id', currentUser.id)
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data.lista_id;
   }
 
   async function refreshListaInfo() {
@@ -481,9 +500,13 @@ window.Sync = (function () {
     const handleSession = (session) => {
       currentUser = session ? session.user : null;
       cb.onAuthChange && cb.onAuthChange(currentUser);
-      if (currentUser) {
+      if (currentUser && !listaId) {
         const stored = getStoredListaId();
-        if (stored && !listaId) linkLista(stored).catch(fail);
+        if (stored) {
+          linkLista(stored).catch(fail);
+        } else {
+          findMyListaId().then((id) => { if (id) linkLista(id).catch(fail); }, fail);
+        }
       }
     };
 
@@ -496,7 +519,8 @@ window.Sync = (function () {
   return {
     isConfigured,
     init,
-    sendMagicLink,
+    sendOtp,
+    verifyOtp,
     signOut,
     getUser,
     getListaId,
