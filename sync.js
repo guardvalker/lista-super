@@ -103,18 +103,22 @@ window.Sync = (function () {
 
   async function createLista(nombre) {
     if (!sb || !currentUser) throw new Error('Iniciá sesión primero');
-    const { data: lista, error } = await sb
-      .from('ls_listas')
-      .insert({ nombre, creado_por: currentUser.id })
-      .select()
-      .single();
+    // Generamos el id acá en vez de encadenar .select() al insert: la
+    // política de SELECT de ls_listas exige ser miembro, y todavía no lo
+    // sos en este mismo statement (te agregás a ls_miembros recién abajo) —
+    // con RETURNING, Postgres aplica esa política sobre la fila insertada y
+    // aborta todo con "new row violates row-level security policy" si no
+    // la pasa. Insertando el id conocido de antemano evitamos depender de
+    // ese RETURNING por completo.
+    const id = crypto.randomUUID();
+    const { error } = await sb.from('ls_listas').insert({ id, nombre, creado_por: currentUser.id });
     if (error) throw error;
     const { error: memErr } = await sb
       .from('ls_miembros')
-      .insert({ lista_id: lista.id, usuario_id: currentUser.id, display_name: currentUser.email });
+      .insert({ lista_id: id, usuario_id: currentUser.id, display_name: currentUser.email });
     if (memErr) throw memErr;
-    await linkLista(lista.id, { autoPull: false });
-    return lista.id;
+    await linkLista(id, { autoPull: false });
+    return id;
   }
 
   async function joinLista(rawInput) {
