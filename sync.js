@@ -134,13 +134,26 @@ window.Sync = (function () {
     if (!error && data) listaInfo = data;
   }
 
-  // Nota: la policy de UPDATE en ls_listas solo deja editar el nombre a
-  // quien la creó (creado_por = auth.uid()), no a cualquier miembro.
+  // La policy de UPDATE en ls_listas solo deja editar el nombre a quien la
+  // creó (creado_por = auth.uid()), no a cualquier miembro. Sin .select(),
+  // un update bloqueado por RLS no devuelve error (PostgREST responde 204
+  // igual, haya afectado 0 filas o 1) — quedaba en un estado ambiguo,
+  // pareciendo éxito pero sin cambiar nada. Encadenando .select().single()
+  // forzamos que un update de 0 filas sí truene, y lo traducimos a un
+  // mensaje claro en vez de un "..." silencioso en la UI.
   async function renameLista(nombre) {
     if (!sb || !listaId) throw new Error('No hay lista activa');
-    const { error } = await sb.from('ls_listas').update({ nombre }).eq('id', listaId);
-    if (error) throw error;
-    await refreshListaInfo();
+    const { data, error } = await sb
+      .from('ls_listas')
+      .update({ nombre })
+      .eq('id', listaId)
+      .select('id, nombre')
+      .single();
+    if (error) {
+      if (error.code === 'PGRST116') throw new Error('Solo quien creó la lista puede renombrarla');
+      throw error;
+    }
+    listaInfo = data;
     cb.onListaChange && cb.onListaChange(listaInfo);
   }
 
