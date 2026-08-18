@@ -68,8 +68,23 @@ window.Sync = (function () {
 
   async function verifyOtp(email, token) {
     if (!sb) throw new Error('Supabase no está configurado');
-    const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+    const { data, error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
     if (error) throw error;
+    // Seteamos currentUser acá en vez de esperar al listener de
+    // onAuthStateChange (dispara async, con timing no garantizado) — si el
+    // caller renderiza la UI apenas resuelve esta promesa, necesita ver el
+    // usuario ya seteado.
+    currentUser = data.user;
+    cb.onAuthChange && cb.onAuthChange(currentUser);
+    if (!listaId) {
+      const stored = getStoredListaId();
+      if (stored) {
+        await linkLista(stored);
+      } else {
+        const id = await findMyListaId();
+        if (id) await linkLista(id);
+      }
+    }
   }
 
   async function signOut() {
@@ -117,6 +132,16 @@ window.Sync = (function () {
     if (!sb || !listaId) return;
     const { data, error } = await sb.from('ls_listas').select('id, nombre').eq('id', listaId).single();
     if (!error && data) listaInfo = data;
+  }
+
+  // Nota: la policy de UPDATE en ls_listas solo deja editar el nombre a
+  // quien la creó (creado_por = auth.uid()), no a cualquier miembro.
+  async function renameLista(nombre) {
+    if (!sb || !listaId) throw new Error('No hay lista activa');
+    const { error } = await sb.from('ls_listas').update({ nombre }).eq('id', listaId);
+    if (error) throw error;
+    await refreshListaInfo();
+    cb.onListaChange && cb.onListaChange(listaInfo);
   }
 
   async function getMembers() {
@@ -534,6 +559,7 @@ window.Sync = (function () {
     getShareLink,
     getMembers,
     createLista,
+    renameLista,
     joinLista,
     leaveLista,
     pendingJoinCodeFromUrl,
