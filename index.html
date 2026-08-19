@@ -1252,7 +1252,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.3.9';
+  const APP_VERSION = '2.4.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1348,6 +1348,10 @@
     ],
     '2.3.9': [
       'Ajustamos el highlight verde al tocar los botones de arriba: se mantiene el feedback visual, pero ahora se apaga justo al soltar el dedo (en vez del efecto nativo del navegador, que se desvanecía a su propio ritmo y quedaba visible en la pantalla siguiente).'
+    ],
+    '2.4.0': [
+      'Arreglamos las sugerencias al escribir un ingrediente: si tipeabas la palabra completa (ej. "pollo") desaparecía de la lista en vez de quedar seleccionable.',
+      'Las sugerencias ahora también incluyen los ingredientes que fuiste agregando a mano (a la lista o a una receta), no solo el diccionario fijo de la app — antes se perdían y había que tipearlos de nuevo cada vez.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -3233,20 +3237,42 @@
   // ---- Autocompletado ----
   // Genérico porque lo usamos tanto en el input principal como en el de
   // ingredientes de una receta: misma navegación por teclado, mismo dropdown.
-  const KNOWN_PRODUCTS = Object.keys(PRODUCT_MAP).sort((a,b) => a.length - b.length);
+  // Fuente de sugerencias: el diccionario fijo (PRODUCT_MAP) más todo lo que
+  // ya se agregó alguna vez a la lista de compras o a alguna receta. Así, un
+  // ingrediente nuevo que el usuario tipeó y categorizó a mano (ej. "milanesa
+  // de soja") vuelve a aparecer la próxima vez que empiece a escribirlo,
+  // aunque no esté en el diccionario original.
+  function getKnownIngredientEntries() {
+    const entries = new Map(); // key normalizada -> { label, catId }
+    Object.keys(PRODUCT_MAP).forEach((key) => {
+      entries.set(key, { label: key, catId: PRODUCT_MAP[key] });
+    });
+    items.forEach((item) => {
+      const key = normalize(item.text);
+      if (key && !entries.has(key)) entries.set(key, { label: item.text.trim(), catId: item.category });
+    });
+    recipes.forEach((r) => {
+      (r.ingredients || []).forEach((ing) => {
+        const key = normalize(ing.text);
+        if (key && !entries.has(key)) entries.set(key, { label: ing.text.trim(), catId: ing.category || 'otros' });
+      });
+    });
+    return entries;
+  }
 
   function getSuggestions(query) {
     const q = normalize(query);
     if (!q) return [];
+    const entries = getKnownIngredientEntries();
+    const keys = [...entries.keys()].sort((a, b) => a.length - b.length);
     const starts = [];
     const contains = [];
-    for (const p of KNOWN_PRODUCTS) {
-      if (p === q) continue;
-      if (p.startsWith(q)) starts.push(p);
-      else if (p.includes(q)) contains.push(p);
+    for (const key of keys) {
+      if (key.startsWith(q)) starts.push(key);
+      else if (key.includes(q)) contains.push(key);
       if (starts.length >= 6) break;
     }
-    return [...starts, ...contains].slice(0, 6);
+    return [...starts, ...contains].slice(0, 6).map((key) => ({ key, ...entries.get(key) }));
   }
 
   function wireSuggestInput(inputEl, boxEl, onSelect) {
@@ -3261,9 +3287,9 @@
         boxEl.innerHTML = '';
         return;
       }
-      boxEl.innerHTML = list.map((p, idx) => {
-        const cat = catById[PRODUCT_MAP[p]];
-        const label = p.charAt(0).toUpperCase() + p.slice(1);
+      boxEl.innerHTML = list.map((entry, idx) => {
+        const cat = catById[entry.catId] || catById['otros'];
+        const label = entry.label.charAt(0).toUpperCase() + entry.label.slice(1);
         return `<div class="suggestion-item" data-idx="${idx}">
           <span>${label}</span>
           <span class="suggestion-cat" style="--cat-color:${catColorVar(cat)}">${cat.icon} ${cat.name}</span>
@@ -3276,9 +3302,9 @@
     }
 
     function pick(idx) {
-      const p = list[idx];
-      if (!p) return;
-      const label = p.charAt(0).toUpperCase() + p.slice(1);
+      const entry = list[idx];
+      if (!entry) return;
+      const label = entry.label.charAt(0).toUpperCase() + entry.label.slice(1);
       onSelect(label);
       inputEl.value = '';
       hide();
