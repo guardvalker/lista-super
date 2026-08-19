@@ -19,12 +19,14 @@ window.Sync = (function () {
   let lastSyncedItems = null;
   let lastSyncedRecipeSig = null; // Map<recipeId, string>
   let lastSyncedPlanFlat = null; // Map<entryId, string>
+  let lastSyncedKnownIngredients = null;
 
   // Últimos argumentos pasados a cada push, para poder reintentar al volver
   // la conexión sin que index.html tenga que saber nada de reintentos.
   let lastItemsArg = null;
   let lastRecipesArg = null;
   let lastPlanArg = null;
+  let lastKnownIngredientsArg = null;
 
   function isConfigured() {
     const c = window.SUPABASE_CONFIG;
@@ -96,6 +98,7 @@ window.Sync = (function () {
     lastSyncedItems = null;
     lastSyncedRecipeSig = null;
     lastSyncedPlanFlat = null;
+    lastSyncedKnownIngredients = null;
     cb.onListaChange && cb.onListaChange(null);
   }
 
@@ -143,6 +146,7 @@ window.Sync = (function () {
       lastSyncedItems = null;
       lastSyncedRecipeSig = null;
       lastSyncedPlanFlat = null;
+      lastSyncedKnownIngredients = null;
       clearStoredListaId();
       cb.onListaChange && cb.onListaChange(null);
       return;
@@ -220,6 +224,7 @@ window.Sync = (function () {
     lastSyncedItems = null;
     lastSyncedRecipeSig = null;
     lastSyncedPlanFlat = null;
+    lastSyncedKnownIngredients = null;
     clearStoredListaId();
     cb.onListaChange && cb.onListaChange(null);
   }
@@ -245,14 +250,21 @@ window.Sync = (function () {
   // ---- Pull remoto (fetch completo + reensamblado a la forma del cliente) ----
 
   async function fetchListaState() {
-    const [itemsRes, recetasRes, planRes] = await Promise.all([
+    const [itemsRes, recetasRes, planRes, ingConocidosRes] = await Promise.all([
       sb.from('ls_items').select('*').eq('lista_id', listaId),
       sb.from('ls_recetas').select('*').eq('lista_id', listaId),
       sb.from('ls_weekly_plan_entries').select('*').eq('lista_id', listaId),
+      sb.from('ls_ingredientes_conocidos').select('*').eq('lista_id', listaId),
     ]);
     if (itemsRes.error) throw itemsRes.error;
     if (recetasRes.error) throw recetasRes.error;
     if (planRes.error) throw planRes.error;
+    // 42P01 = "la tabla no existe": tolerado acá porque esta tabla se agregó
+    // después con una migración aparte (supabase/migration_ingredientes_conocidos.sql)
+    // — mientras alguien no la corra en su proyecto, el resto del sync sigue
+    // funcionando igual, solo sin el catálogo de ingredientes aprendidos.
+    if (ingConocidosRes.error && ingConocidosRes.error.code !== '42P01') throw ingConocidosRes.error;
+    const knownIngredientsRows = ingConocidosRes.error ? [] : ingConocidosRes.data;
 
     const recetaIds = recetasRes.data.map((r) => r.id);
     const [ingRes, subRes, pasosRes] = await Promise.all([
@@ -304,7 +316,9 @@ window.Sync = (function () {
       weeklyPlan[e.day_key].push({ id: e.id, recipeId: e.receta_id, active: e.active });
     });
 
-    return { items, recipes, weeklyPlan };
+    const knownIngredients = knownIngredientsRows.map((i) => ({ id: i.id, key: i.key, text: i.text, category: i.category }));
+
+    return { items, recipes, weeklyPlan, knownIngredients };
   }
 
   async function refetchAll() {
@@ -314,6 +328,7 @@ window.Sync = (function () {
       lastSyncedItems = clone(state.items);
       lastSyncedRecipeSig = new Map(state.recipes.map((r) => [r.id, recipeSignature(r)]));
       lastSyncedPlanFlat = new Map(flattenPlan(state.weeklyPlan).map((e) => [e.id, JSON.stringify(e)]));
+      lastSyncedKnownIngredients = clone(state.knownIngredients);
       cb.onRemoteData && cb.onRemoteData(state);
     } catch (err) {
       fail(err);
@@ -332,6 +347,7 @@ window.Sync = (function () {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ls_items', filter }, debouncedRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ls_recetas', filter }, debouncedRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ls_weekly_plan_entries', filter }, debouncedRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ls_ingredientes_conocidos', filter }, debouncedRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ls_receta_ingredientes' }, debouncedRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ls_receta_subrecetas' }, debouncedRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ls_receta_pasos' }, debouncedRefetch)
@@ -406,6 +422,42 @@ window.Sync = (function () {
         if (error) throw error;
       }
       lastSyncedItems = clone(items);
+    } catch (err) {
+      fail(err);
+    }
+  }
+
+  // Solo agrega (nunca borra ni pisa) — cada dispositivo manda lo que aprendió
+  // localmente y `key` (unique por lista_id) hace que el upsert converja sin
+  // duplicar filas si dos dispositivos aprenden el mismo ingrediente.
+  let pushKnownIngredientsTimer = null;
+  function pushKnownIngredients(knownIngredients) {
+    lastKnownIngredientsArg = knownIngredients;
+    if (!sb || !listaId) return;
+    clearTimeout(pushKnownIngredientsTimer);
+    pushKnownIngredientsTimer = setTimeout(() => doPushKnownIngredients(knownIngredients), 400);
+  }
+
+  async function doPushKnownIngredients(knownIngredients) {
+    const lastByKey = new Map((lastSyncedKnownIngredients || []).map((i) => [i.key, i]));
+    const toUpsert = knownIngredients.filter((i) => !lastByKey.has(i.key));
+    if (!toUpsert.length) return;
+    try {
+      const nowIso = new Date().toISOString();
+      const rows = toUpsert.map((i) => ({
+        id: i.id,
+        lista_id: listaId,
+        key: i.key,
+        text: i.text,
+        category: i.category,
+        updated_at: nowIso,
+      }));
+      const { error } = await sb.from('ls_ingredientes_conocidos').upsert(rows, { onConflict: 'lista_id,key' });
+      if (error) {
+        if (error.code === '42P01') return; // migración todavía no corrida: ver fetchListaState
+        throw error;
+      }
+      lastSyncedKnownIngredients = clone(knownIngredients);
     } catch (err) {
       fail(err);
     }
@@ -490,6 +542,7 @@ window.Sync = (function () {
   function retryPending() {
     if (lastItemsArg) pushItems(lastItemsArg);
     if (lastRecipesArg) pushRecipesAndPlan(lastRecipesArg, lastPlanArg || {});
+    if (lastKnownIngredientsArg) pushKnownIngredients(lastKnownIngredientsArg);
   }
 
   // ---- Migración de datos locales existentes a una lista recién vinculada ----
@@ -540,14 +593,17 @@ window.Sync = (function () {
 
   // Muta items/recipes/weeklyPlan in-place (normaliza ids) y sube todo.
   // index.html debe llamar a sus propios save()/saveRecipesData()/
-  // saveWeeklyPlan() después de esto para persistir los ids corregidos.
-  async function uploadLocalData(items, recipes, weeklyPlan) {
+  // saveWeeklyPlan()/saveKnownIngredients() después de esto para persistir
+  // los ids corregidos.
+  async function uploadLocalData(items, recipes, weeklyPlan, knownIngredients) {
     normalizeIds(items, recipes, weeklyPlan);
     lastSyncedItems = [];
     lastSyncedRecipeSig = new Map();
     lastSyncedPlanFlat = new Map();
+    lastSyncedKnownIngredients = [];
     await doPushItems(items);
     await doPushRecipesAndPlan(recipes, weeklyPlan);
+    await doPushKnownIngredients(knownIngredients || []);
   }
 
   // ---- Init ----
@@ -594,6 +650,7 @@ window.Sync = (function () {
     pendingJoinCodeFromUrl,
     pushItems,
     pushRecipesAndPlan,
+    pushKnownIngredients,
     hasRemoteData,
     uploadLocalData,
     pullNow,

@@ -89,6 +89,22 @@ create table if not exists ls_weekly_plan_entries (
   updated_at timestamptz not null default now()
 );
 
+-- Catálogo de ingredientes "aprendidos": todo texto no reconocido por el
+-- diccionario fijo del cliente (PRODUCT_MAP) que el usuario categorizó a
+-- mano alguna vez, para que el autocompletado lo siga sugiriendo aunque el
+-- item se borre de la lista o de todas las recetas. Nunca se borra desde el
+-- cliente (solo se agrega); `key` es el texto normalizado (sin tildes, en
+-- minúscula) y es lo que dedupea entre dispositivos vía upsert.
+create table if not exists ls_ingredientes_conocidos (
+  id uuid primary key default gen_random_uuid(),
+  lista_id uuid not null references ls_listas(id) on delete cascade,
+  key text not null,
+  text text not null,
+  category text not null,
+  updated_at timestamptz not null default now(),
+  unique (lista_id, key)
+);
+
 create index if not exists ls_items_lista_id_idx on ls_items (lista_id);
 create index if not exists ls_recetas_lista_id_idx on ls_recetas (lista_id);
 create index if not exists ls_receta_ingredientes_receta_id_idx on ls_receta_ingredientes (receta_id);
@@ -97,6 +113,7 @@ create index if not exists ls_receta_pasos_receta_id_idx on ls_receta_pasos (rec
 create index if not exists ls_paso_ingredientes_ingrediente_id_idx on ls_paso_ingredientes (ingrediente_id);
 create index if not exists ls_weekly_plan_entries_lista_id_idx on ls_weekly_plan_entries (lista_id);
 create index if not exists ls_weekly_plan_entries_receta_id_idx on ls_weekly_plan_entries (receta_id);
+create index if not exists ls_ingredientes_conocidos_lista_id_idx on ls_ingredientes_conocidos (lista_id);
 
 -- ----------------------------------------------------------------------------
 -- Helper: ¿el usuario autenticado actual es miembro de esta lista?
@@ -133,13 +150,15 @@ alter table ls_receta_subrecetas enable row level security;
 alter table ls_receta_pasos enable row level security;
 alter table ls_paso_ingredientes enable row level security;
 alter table ls_weekly_plan_entries enable row level security;
+alter table ls_ingredientes_conocidos enable row level security;
 
 -- Grants explícitos de nivel tabla, para no depender de que el proyecto
 -- Supabase tenga configurados los default privileges esperados — RLS por sí
 -- sola no alcanza si el rol `authenticated` no tiene ni el permiso base.
 grant select, insert, update, delete on
   ls_listas, ls_miembros, ls_items, ls_recetas, ls_receta_ingredientes,
-  ls_receta_subrecetas, ls_receta_pasos, ls_paso_ingredientes, ls_weekly_plan_entries
+  ls_receta_subrecetas, ls_receta_pasos, ls_paso_ingredientes, ls_weekly_plan_entries,
+  ls_ingredientes_conocidos
 to authenticated;
 
 -- ls_listas: ver las que integrás; crear libre (te agregás como miembro
@@ -178,6 +197,9 @@ create policy "ls_recetas_all" on ls_recetas
   for all using (ls_is_member(lista_id)) with check (ls_is_member(lista_id));
 
 create policy "ls_weekly_plan_entries_all" on ls_weekly_plan_entries
+  for all using (ls_is_member(lista_id)) with check (ls_is_member(lista_id));
+
+create policy "ls_ingredientes_conocidos_all" on ls_ingredientes_conocidos
   for all using (ls_is_member(lista_id)) with check (ls_is_member(lista_id));
 
 -- Tablas hijas de receta: la membresía se resuelve subiendo hasta la receta

@@ -1234,6 +1234,7 @@
   const SHOW_CHECKED_KEY = 'lista_super_show_checked';
   const COLLAPSED_KEY = 'lista_super_collapsed';
   const THEME_KEY = 'lista_super_theme';
+  const KNOWN_INGREDIENTS_KEY = 'lista_super_known_ingredients';
 
   // Set de iconos propios en SVG (línea, estilo Feather/Lucide) en vez de
   // emoji — heredan color con stroke="currentColor", así siguen el tema.
@@ -1252,7 +1253,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.4.0';
+  const APP_VERSION = '2.5.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1352,6 +1353,10 @@
     '2.4.0': [
       'Arreglamos las sugerencias al escribir un ingrediente: si tipeabas la palabra completa (ej. "pollo") desaparecía de la lista en vez de quedar seleccionable.',
       'Las sugerencias ahora también incluyen los ingredientes que fuiste agregando a mano (a la lista o a una receta), no solo el diccionario fijo de la app — antes se perdían y había que tipearlos de nuevo cada vez.'
+    ],
+    '2.5.0': [
+      'Los ingredientes que agregás a mano ahora quedan guardados para siempre en cuanto les ponés categoría, no solo mientras siguen en la lista o en una receta: si después los borrás de ahí, van a seguir apareciendo como sugerencia (antes se perdían).',
+      'Ese catálogo de ingredientes ahora sincroniza entre dispositivos igual que el resto de la lista, así uno que agregaste en el celular aparece como sugerencia también en la tablet.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1556,6 +1561,63 @@
   let editingId = null; // id del item que se está editando
   let editingCategory = null; // categoría elegida en el modal de edición
 
+  // Catálogo de ingredientes "aprendidos": todo texto no reconocido por
+  // PRODUCT_MAP que el usuario categorizó alguna vez (a mano o por
+  // auto-detección), para que el autocompletado lo siga sugiriendo aunque el
+  // item se borre de la lista o de todas las recetas. Nunca se borra desde
+  // acá — solo crece. [{ id, key, text, category }]
+  let knownIngredients = [];
+
+  function loadKnownIngredients() {
+    try {
+      knownIngredients = JSON.parse(localStorage.getItem(KNOWN_INGREDIENTS_KEY) || '[]');
+    } catch (e) { knownIngredients = []; }
+  }
+
+  function saveKnownIngredients() {
+    localStorage.setItem(KNOWN_INGREDIENTS_KEY, JSON.stringify(knownIngredients));
+    if (!applyingRemoteUpdate && window.Sync) window.Sync.pushKnownIngredients(knownIngredients);
+  }
+
+  function learnIngredient(text, category) {
+    const trimmed = text.trim();
+    if (!trimmed || !category) return;
+    const key = normalize(trimmed);
+    if (!key || PRODUCT_MAP[key]) return; // ya está en el diccionario fijo
+    if (knownIngredients.some((i) => i.key === key)) return; // ya aprendido
+    knownIngredients.push({ id: uid(), key, text: trimmed, category });
+    saveKnownIngredients();
+  }
+
+  // Unión por key con lo que llega de Supabase: nunca se pisa lo aprendido
+  // localmente (ej. mientras estaba offline) con lo remoto, solo se completa.
+  function mergeKnownIngredients(remoteList) {
+    const byKey = new Map(knownIngredients.map((i) => [i.key, i]));
+    (remoteList || []).forEach((i) => { if (!byKey.has(i.key)) byKey.set(i.key, i); });
+    knownIngredients = [...byKey.values()];
+  }
+
+  // Red de seguridad: aprende de lo que YA está en items/recipes pero
+  // todavía no pasó por learnIngredient (usuarios que veníamos de la versión
+  // vieja, donde las sugerencias salían de items/recipes directamente en vez
+  // de este catálogo; también cubre recetas importadas). Se puede llamar
+  // las veces que haga falta, no duplica nada.
+  function backfillKnownIngredientsFromCurrentData() {
+    let changed = false;
+    const consider = (text, category) => {
+      const trimmed = (text || '').trim();
+      if (!trimmed || !category) return;
+      const key = normalize(trimmed);
+      if (!key || PRODUCT_MAP[key]) return;
+      if (knownIngredients.some((i) => i.key === key)) return;
+      knownIngredients.push({ id: uid(), key, text: trimmed, category });
+      changed = true;
+    };
+    items.forEach((i) => consider(i.text, i.category));
+    recipes.forEach((r) => (r.ingredients || []).forEach((ing) => consider(ing.text, ing.category)));
+    if (changed) saveKnownIngredients();
+  }
+
   // ---- Menú semanal ----
   const RECIPES_KEY = 'lista_super_recipes';
   const WEEKLY_PLAN_KEY = 'lista_super_weekly_plan';
@@ -1675,15 +1737,23 @@
       items = remote.items;
       recipes = remote.recipes;
       weeklyPlan = remote.weeklyPlan;
+      mergeKnownIngredients(remote.knownIngredients);
+      backfillKnownIngredientsFromCurrentData();
       recomputeRecipeCounts();
       save();
       saveRecipesData();
       saveWeeklyPlan();
+      saveKnownIngredients();
       render();
       if (typeof renderMenu === 'function') renderMenu();
     } finally {
       applyingRemoteUpdate = false;
     }
+    // Lo que se haya aprendido localmente y todavía no esté en lo que acaba
+    // de llegar (ej. aprendido offline) se sube ahora, fuera del guard de
+    // arriba — doPushKnownIngredients ya sabe filtrar contra lo recién
+    // sincronizado y solo manda lo genuinamente nuevo.
+    if (window.Sync) window.Sync.pushKnownIngredients(knownIngredients);
   }
 
   function uid() {
@@ -1813,6 +1883,7 @@
     const trimmed = text.trim();
     if (!trimmed) return;
     items.unshift({ id: uid(), text: trimmed, checked: false, category });
+    learnIngredient(trimmed, category);
     save();
     render();
   }
@@ -1902,6 +1973,7 @@
     const trimmed = text.trim();
     if (!trimmed) return;
     editingRecipeIngredients.push({ id: uid(), text: trimmed, category });
+    learnIngredient(trimmed, category);
     renderEditorIngredients();
   }
 
@@ -2183,7 +2255,7 @@
     if (!confirm(`¿Subir tus ${items.length} items y ${recipes.length} recetas actuales a la lista compartida?`)) {
       return 'declined';
     }
-    await window.Sync.uploadLocalData(items, recipes, weeklyPlan);
+    await window.Sync.uploadLocalData(items, recipes, weeklyPlan, knownIngredients);
     save();
     saveRecipesData();
     saveWeeklyPlan();
@@ -2651,6 +2723,7 @@
       recipes.push({ id: recipeIdMap.get(r.id) || uid(), name, ingredients, subRecipeIds, instructionBlocks });
       addedCount++;
     });
+    backfillKnownIngredientsFromCurrentData();
     saveRecipesData();
     renderRecipePickerList();
     renderMenu();
@@ -3237,25 +3310,18 @@
   // ---- Autocompletado ----
   // Genérico porque lo usamos tanto en el input principal como en el de
   // ingredientes de una receta: misma navegación por teclado, mismo dropdown.
-  // Fuente de sugerencias: el diccionario fijo (PRODUCT_MAP) más todo lo que
-  // ya se agregó alguna vez a la lista de compras o a alguna receta. Así, un
-  // ingrediente nuevo que el usuario tipeó y categorizó a mano (ej. "milanesa
-  // de soja") vuelve a aparecer la próxima vez que empiece a escribirlo,
-  // aunque no esté en el diccionario original.
+  // Fuente de sugerencias: el diccionario fijo (PRODUCT_MAP) más el catálogo
+  // de ingredientes aprendidos (knownIngredients). Un ingrediente nuevo que
+  // el usuario tipeó y categorizó a mano (ej. "milanesa de soja") queda
+  // aprendido para siempre en cuanto se categoriza, así que sigue apareciendo
+  // en las sugerencias aunque después se borre de la lista o de la receta.
   function getKnownIngredientEntries() {
     const entries = new Map(); // key normalizada -> { label, catId }
     Object.keys(PRODUCT_MAP).forEach((key) => {
       entries.set(key, { label: key, catId: PRODUCT_MAP[key] });
     });
-    items.forEach((item) => {
-      const key = normalize(item.text);
-      if (key && !entries.has(key)) entries.set(key, { label: item.text.trim(), catId: item.category });
-    });
-    recipes.forEach((r) => {
-      (r.ingredients || []).forEach((ing) => {
-        const key = normalize(ing.text);
-        if (key && !entries.has(key)) entries.set(key, { label: ing.text.trim(), catId: ing.category || 'otros' });
-      });
+    knownIngredients.forEach((entry) => {
+      if (!entries.has(entry.key)) entries.set(entry.key, { label: entry.text, catId: entry.category });
     });
     return entries;
   }
@@ -3519,6 +3585,8 @@
   applyStaticIcons();
   load();
   loadRecipes();
+  loadKnownIngredients();
+  backfillKnownIngredientsFromCurrentData();
   render();
   checkForUpdate();
   initSync();
