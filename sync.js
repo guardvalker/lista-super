@@ -259,11 +259,12 @@ window.Sync = (function () {
     if (itemsRes.error) throw itemsRes.error;
     if (recetasRes.error) throw recetasRes.error;
     if (planRes.error) throw planRes.error;
-    // 42P01 = "la tabla no existe": tolerado acá porque esta tabla se agregó
-    // después con una migración aparte (supabase/migration_ingredientes_conocidos.sql)
-    // — mientras alguien no la corra en su proyecto, el resto del sync sigue
-    // funcionando igual, solo sin el catálogo de ingredientes aprendidos.
-    if (ingConocidosRes.error && ingConocidosRes.error.code !== '42P01') throw ingConocidosRes.error;
+    // Tolerado acá porque esta tabla se agregó después con una migración
+    // aparte (supabase/migration_ingredientes_conocidos.sql) — mientras
+    // alguien no la corra (o el cache de esquema de PostgREST no la vea
+    // todavía), el resto del sync sigue funcionando igual, solo sin el
+    // catálogo de ingredientes aprendidos.
+    if (ingConocidosRes.error && !isMissingTableError(ingConocidosRes.error)) throw ingConocidosRes.error;
     const knownIngredientsRows = ingConocidosRes.error ? [] : ingConocidosRes.data;
 
     const recetaIds = recetasRes.data.map((r) => r.id);
@@ -324,11 +325,20 @@ window.Sync = (function () {
   async function refetchAll() {
     if (!sb || !listaId) return;
     try {
+      // ids que este dispositivo creía sincronizados ANTES de este pull — se
+      // los pasamos al caller para que pueda distinguir "esto lo borraron en
+      // otro dispositivo" (estaba synced, ya no viene en el remoto: se
+      // descarta) de "esto lo aprendí offline recién" (nunca estuvo synced:
+      // se preserva aunque el remoto todavía no lo tenga). Sin esta
+      // distinción, un merge que solo suma terminaría resucitando cualquier
+      // borrado en cuanto otro dispositivo hiciera un pull.
+      const knownIngredientsPreviousSyncedIds = (lastSyncedKnownIngredients || []).map((i) => i.id);
       const state = await fetchListaState();
       lastSyncedItems = clone(state.items);
       lastSyncedRecipeSig = new Map(state.recipes.map((r) => [r.id, recipeSignature(r)]));
       lastSyncedPlanFlat = new Map(flattenPlan(state.weeklyPlan).map((e) => [e.id, JSON.stringify(e)]));
       lastSyncedKnownIngredients = clone(state.knownIngredients);
+      state.knownIngredientsPreviousSyncedIds = knownIngredientsPreviousSyncedIds;
       cb.onRemoteData && cb.onRemoteData(state);
     } catch (err) {
       fail(err);
@@ -427,9 +437,12 @@ window.Sync = (function () {
     }
   }
 
-  // Solo agrega (nunca borra ni pisa) — cada dispositivo manda lo que aprendió
-  // localmente y `key` (unique por lista_id) hace que el upsert converja sin
-  // duplicar filas si dos dispositivos aprenden el mismo ingrediente.
+  // Mismo patrón que doPushItems: diff por id contra el último snapshot
+  // sincronizado, upsert de lo nuevo/cambiado y delete de lo que se sacó del
+  // catálogo (ej. desde la pantalla "Ingredientes"). Dos dispositivos que
+  // aprenden el mismo ingrediente offline antes de sincronizar pueden dejar
+  // dos filas con el mismo `key` — no rompe nada, el cliente ya dedupea por
+  // key al armar las sugerencias (getIngredientCatalogEntries).
   let pushKnownIngredientsTimer = null;
   function pushKnownIngredients(knownIngredients) {
     lastKnownIngredientsArg = knownIngredients;
@@ -438,24 +451,41 @@ window.Sync = (function () {
     pushKnownIngredientsTimer = setTimeout(() => doPushKnownIngredients(knownIngredients), 400);
   }
 
+  // 42P01 = tabla no existe (postgres crudo) / PGRST205 = PostgREST no la
+  // encuentra en su cache de esquema (falta correr la migración, o recién se
+  // corrió y todavía no refrescó) — en ambos casos toleramos en vez de
+  // romper el resto del sync. Ver supabase/migration_ingredientes_conocidos.sql.
+  function isMissingTableError(error) {
+    return !!error && (error.code === '42P01' || error.code === 'PGRST205');
+  }
+
   async function doPushKnownIngredients(knownIngredients) {
-    const lastByKey = new Map((lastSyncedKnownIngredients || []).map((i) => [i.key, i]));
-    const toUpsert = knownIngredients.filter((i) => !lastByKey.has(i.key));
-    if (!toUpsert.length) return;
+    const lastById = new Map((lastSyncedKnownIngredients || []).map((i) => [i.id, i]));
+    const currentIds = new Set(knownIngredients.map((i) => i.id));
+    const toDelete = [...lastById.keys()].filter((id) => !currentIds.has(id));
+    const toUpsert = knownIngredients.filter((i) => JSON.stringify(i) !== JSON.stringify(lastById.get(i.id)));
+
+    if (!toDelete.length && !toUpsert.length) return;
     try {
-      const nowIso = new Date().toISOString();
-      const rows = toUpsert.map((i) => ({
-        id: i.id,
-        lista_id: listaId,
-        key: i.key,
-        text: i.text,
-        category: i.category,
-        updated_at: nowIso,
-      }));
-      const { error } = await sb.from('ls_ingredientes_conocidos').upsert(rows, { onConflict: 'lista_id,key' });
-      if (error) {
-        if (error.code === '42P01') return; // migración todavía no corrida: ver fetchListaState
-        throw error;
+      if (toDelete.length) {
+        const { error } = await sb.from('ls_ingredientes_conocidos').delete().in('id', toDelete);
+        if (error && !isMissingTableError(error)) throw error;
+      }
+      if (toUpsert.length) {
+        const nowIso = new Date().toISOString();
+        const rows = toUpsert.map((i) => ({
+          id: i.id,
+          lista_id: listaId,
+          key: i.key,
+          text: i.text,
+          category: i.category,
+          updated_at: nowIso,
+        }));
+        const { error } = await sb.from('ls_ingredientes_conocidos').upsert(rows);
+        if (error) {
+          if (isMissingTableError(error)) return;
+          throw error;
+        }
       }
       lastSyncedKnownIngredients = clone(knownIngredients);
     } catch (err) {

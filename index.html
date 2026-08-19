@@ -221,13 +221,28 @@
     transition: transform 0.15s ease;
   }
   .add-icon-btn:active { transform: scale(0.95); }
+  .list-icon-btn {
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 12px;
+    width: 48px;
+    min-width: 48px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, color 0.15s ease;
+  }
+  .list-icon-btn svg { width: 20px; height: 20px; }
+  .list-icon-btn:active { transform: scale(0.95); color: var(--accent); }
 
   /* Autocomplete dropdown */
   .suggestions {
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
-    right: 60px;
+    right: 116px;
     background: var(--card-2);
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -591,6 +606,7 @@
 
   /* ---- Pantalla Recetas: índice alfabético ---- */
   .recetas-toolbar { padding: 12px 16px 0 16px; margin-bottom: 0; }
+  .ingredientes-search-row { padding: 12px 16px 10px 16px; }
   .recetas-body-row {
     flex: 1;
     display: flex;
@@ -960,6 +976,24 @@
   .recipe-row-name { font-size: 14.5px; font-weight: 600; }
   .recipe-row-count { font-size: 11.5px; color: var(--text-dim); }
 
+  /* fila de ingrediente dentro del catálogo (pantalla "Ingredientes") */
+  .ing-row-icon { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
+  .ing-row-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .ing-row-name {
+    font-size: 14.5px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ing-row-locked { font-size: 13px; opacity: 0.5; padding: 4px 6px; flex-shrink: 0; }
+
   /* lista de ingredientes dentro del editor de receta */
   .ingredient-list {
     display: flex;
@@ -1010,6 +1044,7 @@
     <div class="add-row">
       <input type="text" id="newItem" class="text-input" placeholder="Agregar item... (ej: leche, pollo)" autocomplete="off" autocorrect="off">
       <button id="addBtn" class="add-icon-btn" type="button">+</button>
+      <button id="ingredientesBtn" class="list-icon-btn" type="button" aria-label="Ver todos los ingredientes"></button>
       <div class="suggestions" id="suggestions"></div>
     </div>
   </header>
@@ -1066,6 +1101,16 @@
     <div class="modal-subtitle">Categoría</div>
     <div class="modal-grid" id="editModalGrid"></div>
     <button class="modal-save-btn" id="editSaveBtn" type="button">Guardar cambios</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ingredientEditOverlay">
+  <div class="modal">
+    <div class="modal-title">Editar ingrediente</div>
+    <input type="text" id="ingredientEditInput" class="modal-input" autocomplete="off" autocorrect="off">
+    <div class="modal-subtitle">Categoría</div>
+    <div class="modal-grid" id="ingredientEditGrid"></div>
+    <button class="modal-save-btn" id="ingredientEditSaveBtn" type="button">Guardar cambios</button>
   </div>
 </div>
 
@@ -1127,6 +1172,7 @@
     <div class="add-row" id="recipeIngRow">
       <input type="text" id="recipeIngInput" class="text-input" placeholder="Agregar ingrediente..." autocomplete="off" autocorrect="off">
       <button id="recipeIngAddBtn" class="add-icon-btn" type="button">+</button>
+      <button id="recipeIngListBtn" class="list-icon-btn" type="button" aria-label="Ver todos los ingredientes"></button>
       <div class="suggestions" id="recipeIngSuggestions"></div>
     </div>
     <div id="recipeIngList" class="ingredient-list"></div>
@@ -1169,6 +1215,23 @@
     <div class="recetas-body-row">
       <div class="recetas-list" id="recetasList"></div>
       <div class="alpha-index" id="alphaIndex"></div>
+    </div>
+  </div>
+</div>
+
+<div class="screen-overlay" id="ingredientesOverlay">
+  <div class="screen">
+    <div class="screen-header">
+      <button class="theme-toggle" id="ingredientesBackBtn" type="button" aria-label="Volver"></button>
+      <div class="screen-title">Ingredientes</div>
+      <div class="screen-header-spacer"></div>
+    </div>
+    <div class="ingredientes-search-row">
+      <input type="text" id="ingredientesSearchInput" class="text-input" placeholder="Buscar ingrediente..." autocomplete="off" autocorrect="off">
+    </div>
+    <div class="recetas-body-row">
+      <div class="recetas-list" id="ingredientesList"></div>
+      <div class="alpha-index" id="ingredientesAlphaIndex"></div>
     </div>
   </div>
 </div>
@@ -1253,7 +1316,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.5.0';
+  const APP_VERSION = '2.6.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1357,6 +1420,10 @@
     '2.5.0': [
       'Los ingredientes que agregás a mano ahora quedan guardados para siempre en cuanto les ponés categoría, no solo mientras siguen en la lista o en una receta: si después los borrás de ahí, van a seguir apareciendo como sugerencia (antes se perdían).',
       'Ese catálogo de ingredientes ahora sincroniza entre dispositivos igual que el resto de la lista, así uno que agregaste en el celular aparece como sugerencia también en la tablet.'
+    ],
+    '2.6.0': [
+      'Nuevo botón (ícono de lista, al lado del "+" para agregar) que abre el catálogo completo de ingredientes: se puede buscar, y los que agregaste vos se pueden editar o borrar desde ahí.',
+      'Arreglamos un error de sincronización ("could not find the table...") que aparecía al guardar ingredientes nuevos.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1382,6 +1449,9 @@
     document.getElementById('recipeDetailBackBtn').innerHTML = ICONS.back;
     document.getElementById('recipeDetailEditBtn').innerHTML = ICONS.edit;
     document.getElementById('accountBtn').innerHTML = ICONS.cloud;
+    document.getElementById('ingredientesBtn').innerHTML = ICONS.list;
+    document.getElementById('recipeIngListBtn').innerHTML = ICONS.list;
+    document.getElementById('ingredientesBackBtn').innerHTML = ICONS.back;
   }
 
   document.getElementById('themeToggle').addEventListener('click', () => {
@@ -1560,6 +1630,9 @@
   let categoryModalTarget = 'list'; // 'list' (lista principal) | 'ingredient' (editor de receta)
   let editingId = null; // id del item que se está editando
   let editingCategory = null; // categoría elegida en el modal de edición
+  let editingKnownIngredientId = null; // id (en knownIngredients) del ingrediente que se está editando desde el catálogo
+  let editingKnownIngredientCategory = null;
+  let ingredientesFilter = ''; // texto de búsqueda en la pantalla "Ingredientes"
 
   // Catálogo de ingredientes "aprendidos": todo texto no reconocido por
   // PRODUCT_MAP que el usuario categorizó alguna vez (a mano o por
@@ -1589,12 +1662,16 @@
     saveKnownIngredients();
   }
 
-  // Unión por key con lo que llega de Supabase: nunca se pisa lo aprendido
-  // localmente (ej. mientras estaba offline) con lo remoto, solo se completa.
-  function mergeKnownIngredients(remoteList) {
-    const byKey = new Map(knownIngredients.map((i) => [i.key, i]));
-    (remoteList || []).forEach((i) => { if (!byKey.has(i.key)) byKey.set(i.key, i); });
-    knownIngredients = [...byKey.values()];
+  // Reconcilia con lo que llega de Supabase sin resucitar borrados: lo
+  // remoto manda para todo lo que este dispositivo ya había sincronizado
+  // alguna vez (si ya no está, es porque se borró en otro lado); lo único
+  // que se preserva de acá es lo aprendido offline que todavía nunca llegó a
+  // sincronizarse (previousSyncedIds no lo incluye).
+  function mergeKnownIngredients(remoteList, previousSyncedIds) {
+    const remoteById = new Map((remoteList || []).map((i) => [i.id, i]));
+    const previousIds = new Set(previousSyncedIds || []);
+    const unsyncedLocal = knownIngredients.filter((i) => !previousIds.has(i.id) && !remoteById.has(i.id));
+    knownIngredients = [...(remoteList || []), ...unsyncedLocal];
   }
 
   // Red de seguridad: aprende de lo que YA está en items/recipes pero
@@ -1616,6 +1693,142 @@
     items.forEach((i) => consider(i.text, i.category));
     recipes.forEach((r) => (r.ingredients || []).forEach((ing) => consider(ing.text, ing.category)));
     if (changed) saveKnownIngredients();
+  }
+
+  // ---- Pantalla "Ingredientes": catálogo completo (diccionario fijo +
+  // aprendidos), buscable y con edición/borrado de los aprendidos. Los del
+  // diccionario fijo son de solo lectura porque viven en el código, no en
+  // datos — no tiene sentido "editarlos" desde acá.
+  function getIngredientCatalogEntries() {
+    const list = [];
+    const seen = new Set();
+    knownIngredients.forEach((entry) => {
+      if (seen.has(entry.key)) return;
+      seen.add(entry.key);
+      list.push({ key: entry.key, label: entry.text, catId: entry.category, id: entry.id, editable: true });
+    });
+    Object.keys(PRODUCT_MAP).forEach((key) => {
+      if (seen.has(key)) return;
+      seen.add(key);
+      list.push({ key, label: key, catId: PRODUCT_MAP[key], id: null, editable: false });
+    });
+    return list;
+  }
+
+  function openIngredientes() {
+    ingredientesFilter = '';
+    document.getElementById('ingredientesSearchInput').value = '';
+    renderIngredientesList();
+    document.getElementById('ingredientesOverlay').classList.add('show');
+  }
+
+  function closeIngredientes() {
+    document.getElementById('ingredientesOverlay').classList.remove('show');
+  }
+
+  function renderIngredientesList() {
+    const listEl = document.getElementById('ingredientesList');
+    const indexEl = document.getElementById('ingredientesAlphaIndex');
+    const q = normalize(ingredientesFilter);
+    let entries = getIngredientCatalogEntries();
+    if (q) entries = entries.filter((e) => normalize(e.label).includes(q));
+    if (entries.length === 0) {
+      listEl.innerHTML = '<div class="recetas-empty">No encontramos ningún ingrediente con ese texto.</div>';
+      indexEl.innerHTML = '';
+      return;
+    }
+    const sorted = entries.sort((a, b) => normalize(a.label).localeCompare(normalize(b.label)));
+    const groups = new Map(); // letra -> [entries]
+    sorted.forEach((entry) => {
+      const letter = (normalize(entry.label).charAt(0) || '#').toUpperCase();
+      if (!groups.has(letter)) groups.set(letter, []);
+      groups.get(letter).push(entry);
+    });
+    const letters = [...groups.keys()].sort();
+
+    listEl.innerHTML = letters.map((letter) => `
+      <div class="recipe-letter-heading" id="ingredientes-letter-${letter}">${letter}</div>
+      ${groups.get(letter).map((entry) => {
+        const cat = catById[entry.catId] || catById['otros'];
+        const label = entry.label.charAt(0).toUpperCase() + entry.label.slice(1);
+        return `<div class="recipe-row">
+          <span class="ing-row-icon">${cat.icon}</span>
+          <div class="ing-row-body">
+            <span class="ing-row-name">${escapeHtml(label)}</span>
+            <span class="suggestion-cat" style="--cat-color:${catColorVar(cat)}">${cat.name}</span>
+          </div>
+          ${entry.editable
+            ? `<button class="edit-btn" type="button" data-action="edit-known-ingredient" data-ing-id="${entry.id}">✏️</button>
+               <button class="delete-btn" type="button" data-action="delete-known-ingredient" data-ing-id="${entry.id}">✕</button>`
+            : `<span class="ing-row-locked" title="Ingrediente predefinido de la app">🔒</span>`}
+        </div>`;
+      }).join('')}
+    `).join('');
+
+    // misma guía A-Z siempre visible que en la pantalla de Recetas.
+    const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    const extraLetters = letters.filter((l) => !ALPHABET.includes(l));
+    indexEl.innerHTML = [...ALPHABET, ...extraLetters].map((letter) => {
+      const has = groups.has(letter);
+      return `<button type="button" class="alpha-index-letter${has ? '' : ' is-empty'}" data-action="jump-to-ing-letter" data-letter="${letter}"${has ? '' : ' disabled'}>${letter}</button>`;
+    }).join('');
+  }
+
+  function openIngredientEditModal(id) {
+    const entry = knownIngredients.find((i) => i.id === id);
+    if (!entry) return;
+    editingKnownIngredientId = id;
+    editingKnownIngredientCategory = entry.category;
+    document.getElementById('ingredientEditInput').value = entry.text;
+    renderIngredientEditGrid();
+    document.getElementById('ingredientEditOverlay').classList.add('show');
+  }
+
+  function closeIngredientEditModal() {
+    document.getElementById('ingredientEditOverlay').classList.remove('show');
+    editingKnownIngredientId = null;
+    editingKnownIngredientCategory = null;
+  }
+
+  function renderIngredientEditGrid() {
+    const grid = document.getElementById('ingredientEditGrid');
+    grid.innerHTML = CATEGORIES.map((cat) => `
+      <button type="button" class="modal-cat-btn${cat.id === editingKnownIngredientCategory ? ' selected' : ''}" style="--cat-color:${catColorVar(cat)}" data-action="select-ingredient-edit-category" data-cat-id="${cat.id}">
+        ${cat.icon} ${cat.name}
+      </button>
+    `).join('');
+  }
+
+  function saveIngredientEdit() {
+    if (!editingKnownIngredientId) return;
+    const entry = knownIngredients.find((i) => i.id === editingKnownIngredientId);
+    if (!entry) return;
+    const newText = document.getElementById('ingredientEditInput').value.trim();
+    if (!newText) return;
+    const newKey = normalize(newText);
+    if (PRODUCT_MAP[newKey]) {
+      alert('Ese nombre ya está en el diccionario fijo de la app, no hace falta guardarlo aparte.');
+      return;
+    }
+    if (knownIngredients.some((i) => i.id !== editingKnownIngredientId && i.key === newKey)) {
+      alert('Ya existe un ingrediente guardado con ese nombre.');
+      return;
+    }
+    entry.text = newText;
+    entry.key = newKey;
+    entry.category = editingKnownIngredientCategory;
+    saveKnownIngredients();
+    closeIngredientEditModal();
+    renderIngredientesList();
+  }
+
+  function deleteKnownIngredient(id) {
+    const entry = knownIngredients.find((i) => i.id === id);
+    if (!entry) return;
+    if (!confirm(`¿Sacar "${entry.text}" del catálogo de ingredientes? Deja de aparecer como sugerencia.`)) return;
+    knownIngredients = knownIngredients.filter((i) => i.id !== id);
+    saveKnownIngredients();
+    renderIngredientesList();
   }
 
   // ---- Menú semanal ----
@@ -1737,7 +1950,7 @@
       items = remote.items;
       recipes = remote.recipes;
       weeklyPlan = remote.weeklyPlan;
-      mergeKnownIngredients(remote.knownIngredients);
+      mergeKnownIngredients(remote.knownIngredients, remote.knownIngredientsPreviousSyncedIds);
       backfillKnownIngredientsFromCurrentData();
       recomputeRecipeCounts();
       save();
@@ -3109,6 +3322,21 @@
 
   document.getElementById('recetasBtn').addEventListener('click', openRecetas);
   document.getElementById('recetasBackBtn').addEventListener('click', closeRecetas);
+
+  document.getElementById('ingredientesBtn').addEventListener('click', openIngredientes);
+  document.getElementById('recipeIngListBtn').addEventListener('click', openIngredientes);
+  document.getElementById('ingredientesBackBtn').addEventListener('click', closeIngredientes);
+  document.getElementById('ingredientesSearchInput').addEventListener('input', (e) => {
+    ingredientesFilter = e.target.value;
+    renderIngredientesList();
+  });
+  document.getElementById('ingredientEditSaveBtn').addEventListener('click', saveIngredientEdit);
+  document.getElementById('ingredientEditInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') saveIngredientEdit();
+  });
+  document.getElementById('ingredientEditOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'ingredientEditOverlay') closeIngredientEditModal();
+  });
   document.getElementById('recipeDetailBackBtn').addEventListener('click', closeRecipeDetail);
   document.getElementById('recipeDetailEditBtn').addEventListener('click', () => {
     if (openRecipeDetailId) openRecipeEditor(openRecipeDetailId, 'receta');
@@ -3524,6 +3752,16 @@
         configuringBlockActions.push(actionId);
       }
       renderStepActionsGrid();
+    } else if (action === 'edit-known-ingredient') {
+      openIngredientEditModal(target.dataset.ingId);
+    } else if (action === 'delete-known-ingredient') {
+      deleteKnownIngredient(target.dataset.ingId);
+    } else if (action === 'select-ingredient-edit-category') {
+      editingKnownIngredientCategory = target.dataset.catId;
+      renderIngredientEditGrid();
+    } else if (action === 'jump-to-ing-letter') {
+      const el = document.getElementById(`ingredientes-letter-${target.dataset.letter}`);
+      if (el) el.scrollIntoView({ block: 'start' });
     }
   }
 
@@ -3537,6 +3775,9 @@
   document.getElementById('subrecipePickerList').addEventListener('click', handleDelegatedClick);
   document.getElementById('recetasList').addEventListener('click', handleDelegatedClick);
   document.getElementById('alphaIndex').addEventListener('click', handleDelegatedClick);
+  document.getElementById('ingredientesList').addEventListener('click', handleDelegatedClick);
+  document.getElementById('ingredientesAlphaIndex').addEventListener('click', handleDelegatedClick);
+  document.getElementById('ingredientEditGrid').addEventListener('click', handleDelegatedClick);
   document.getElementById('recipeDetailIngredients').addEventListener('click', handleDelegatedClick);
   document.getElementById('instructionBlocksList').addEventListener('click', handleDelegatedClick);
   document.getElementById('stepActionsGrid').addEventListener('click', handleDelegatedClick);

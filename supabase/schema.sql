@@ -92,17 +92,19 @@ create table if not exists ls_weekly_plan_entries (
 -- Catálogo de ingredientes "aprendidos": todo texto no reconocido por el
 -- diccionario fijo del cliente (PRODUCT_MAP) que el usuario categorizó a
 -- mano alguna vez, para que el autocompletado lo siga sugiriendo aunque el
--- item se borre de la lista o de todas las recetas. Nunca se borra desde el
--- cliente (solo se agrega); `key` es el texto normalizado (sin tildes, en
--- minúscula) y es lo que dedupea entre dispositivos vía upsert.
+-- item se borre de la lista o de todas las recetas — editable y borrable
+-- desde la pantalla "Ingredientes". `key` es el texto normalizado (sin
+-- tildes, en minúscula); el dedupe entre dispositivos es client-side
+-- (getIngredientCatalogEntries), no una constraint acá, para no pelearse con
+-- ediciones que cambian el texto (y por lo tanto el key) de una fila ya
+-- sincronizada.
 create table if not exists ls_ingredientes_conocidos (
   id uuid primary key default gen_random_uuid(),
   lista_id uuid not null references ls_listas(id) on delete cascade,
   key text not null,
   text text not null,
   category text not null,
-  updated_at timestamptz not null default now(),
-  unique (lista_id, key)
+  updated_at timestamptz not null default now()
 );
 
 create index if not exists ls_items_lista_id_idx on ls_items (lista_id);
