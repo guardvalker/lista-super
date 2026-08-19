@@ -1316,7 +1316,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.6.0';
+  const APP_VERSION = '2.6.1';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1424,6 +1424,9 @@
     '2.6.0': [
       'Nuevo botón (ícono de lista, al lado del "+" para agregar) que abre el catálogo completo de ingredientes: se puede buscar, y los que agregaste vos se pueden editar o borrar desde ahí.',
       'Arreglamos un error de sincronización ("could not find the table...") que aparecía al guardar ingredientes nuevos.'
+    ],
+    '2.6.1': [
+      'Arreglamos otro error de sincronización al guardar un ingrediente nuevo ("no unique or exclusion constraint..."), que quedó pendiente del cambio anterior.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';

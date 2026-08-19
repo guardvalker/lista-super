@@ -31,8 +31,21 @@ create table if not exists ls_ingredientes_conocidos (
 
 -- por si quedó de una corrida anterior de esta misma migración, antes de
 -- sacarla: rompía el upsert al editar el texto (y por lo tanto el key) de
--- una fila ya sincronizada.
-alter table ls_ingredientes_conocidos drop constraint if exists ls_ingredientes_conocidos_lista_id_key_key;
+-- una fila ya sincronizada, y sin especificar bien la constraint de
+-- conflicto en el upsert daba "no unique or exclusion constraint matching
+-- the on conflict specification". Recorre pg_constraint en vez de asumir el
+-- nombre exacto, para no depender de cómo Postgres lo haya generado.
+do $$
+declare
+  r record;
+begin
+  for r in
+    select conname from pg_constraint
+    where conrelid = 'public.ls_ingredientes_conocidos'::regclass and contype = 'u'
+  loop
+    execute format('alter table ls_ingredientes_conocidos drop constraint %I', r.conname);
+  end loop;
+end $$;
 
 create index if not exists ls_ingredientes_conocidos_lista_id_idx on ls_ingredientes_conocidos (lista_id);
 

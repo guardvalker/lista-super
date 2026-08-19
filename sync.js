@@ -481,7 +481,11 @@ window.Sync = (function () {
           category: i.category,
           updated_at: nowIso,
         }));
-        const { error } = await sb.from('ls_ingredientes_conocidos').upsert(rows);
+        // onConflict explícito (la primary key): sin esto, algunos setups de
+        // PostgREST no infieren solos la constraint de conflicto y tiran
+        // "no unique or exclusion constraint matching the on conflict
+        // specification" en vez de resolver contra la primary key.
+        const { error } = await sb.from('ls_ingredientes_conocidos').upsert(rows, { onConflict: 'id' });
         if (error) {
           if (isMissingTableError(error)) return;
           throw error;
