@@ -1316,7 +1316,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.6.1';
+  const APP_VERSION = '2.7.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1427,6 +1427,10 @@
     ],
     '2.6.1': [
       'Arreglamos otro error de sincronización al guardar un ingrediente nuevo ("no unique or exclusion constraint..."), que quedó pendiente del cambio anterior.'
+    ],
+    '2.7.0': [
+      'Sacamos el candado del catálogo de ingredientes: ahora se puede editar la categoría de cualquier ingrediente, incluidos los predefinidos de la app (queda guardado como tu propia versión, sin tocar el diccionario original).',
+      'Los predefinidos no se pueden borrar del todo (viven en el código), pero se pueden ocultar de las sugerencias y restaurar después desde el mismo listado.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1610,6 +1614,11 @@
 
   function detectCategory(rawText) {
     const text = normalize(rawText);
+    // 0. override desde el catálogo de ingredientes: gana siempre, incluso
+    // sobre una palabra del diccionario fijo (así se puede "editar" una
+    // categoría predefinida). Si está oculta, se trata como no reconocida.
+    const override = knownIngredients.find((i) => i.key === text);
+    if (override) return override.hidden ? null : override.category;
     // 1. match exacto
     if (PRODUCT_MAP[text]) return PRODUCT_MAP[text];
     // 2. el texto contiene alguna clave del diccionario (clave mas larga primero)
@@ -1633,7 +1642,8 @@
   let categoryModalTarget = 'list'; // 'list' (lista principal) | 'ingredient' (editor de receta)
   let editingId = null; // id del item que se está editando
   let editingCategory = null; // categoría elegida en el modal de edición
-  let editingKnownIngredientId = null; // id (en knownIngredients) del ingrediente que se está editando desde el catálogo
+  let editingKnownIngredientKey = null; // key normalizada del ingrediente que se está editando desde el catálogo (marca que el modal está abierto)
+  let editingKnownIngredientId = null; // id en knownIngredients si ya existe un override/aprendido para esa key; null = todavía puro diccionario
   let editingKnownIngredientCategory = null;
   let ingredientesFilter = ''; // texto de búsqueda en la pantalla "Ingredientes"
 
@@ -1699,21 +1709,24 @@
   }
 
   // ---- Pantalla "Ingredientes": catálogo completo (diccionario fijo +
-  // aprendidos), buscable y con edición/borrado de los aprendidos. Los del
-  // diccionario fijo son de solo lectura porque viven en el código, no en
-  // datos — no tiene sentido "editarlos" desde acá.
+  // aprendidos), buscable, con edición y borrado de cualquier entrada — sí,
+  // también las del diccionario fijo: editarla crea un "override" en
+  // knownIngredients con la misma key, que gana sobre el diccionario en
+  // detectCategory/getKnownIngredientEntries. Borrarla no se puede (vive en
+  // el código), pero se puede ocultar (tombstone `hidden: true`) y restaurar
+  // después.
   function getIngredientCatalogEntries() {
     const list = [];
     const seen = new Set();
     knownIngredients.forEach((entry) => {
       if (seen.has(entry.key)) return;
       seen.add(entry.key);
-      list.push({ key: entry.key, label: entry.text, catId: entry.category, id: entry.id, editable: true });
+      list.push({ key: entry.key, label: entry.text, catId: entry.category, id: entry.id, hidden: !!entry.hidden });
     });
     Object.keys(PRODUCT_MAP).forEach((key) => {
       if (seen.has(key)) return;
       seen.add(key);
-      list.push({ key, label: key, catId: PRODUCT_MAP[key], id: null, editable: false });
+      list.push({ key, label: key, catId: PRODUCT_MAP[key], id: null, hidden: false });
     });
     return list;
   }
@@ -1760,10 +1773,11 @@
             <span class="ing-row-name">${escapeHtml(label)}</span>
             <span class="suggestion-cat" style="--cat-color:${catColorVar(cat)}">${cat.name}</span>
           </div>
-          ${entry.editable
-            ? `<button class="edit-btn" type="button" data-action="edit-known-ingredient" data-ing-id="${entry.id}">✏️</button>
-               <button class="delete-btn" type="button" data-action="delete-known-ingredient" data-ing-id="${entry.id}">✕</button>`
-            : `<span class="ing-row-locked" title="Ingrediente predefinido de la app">🔒</span>`}
+          ${entry.hidden
+            ? `<span class="ing-row-locked" title="Oculto de las sugerencias">🙈</span>
+               <button class="edit-btn" type="button" data-action="restore-known-ingredient" data-ing-key="${escapeHtml(entry.key)}">↺</button>`
+            : `<button class="edit-btn" type="button" data-action="edit-known-ingredient" data-ing-key="${escapeHtml(entry.key)}">✏️</button>
+               <button class="delete-btn" type="button" data-action="delete-known-ingredient" data-ing-key="${escapeHtml(entry.key)}">✕</button>`}
         </div>`;
       }).join('')}
     `).join('');
@@ -1777,18 +1791,19 @@
     }).join('');
   }
 
-  function openIngredientEditModal(id) {
-    const entry = knownIngredients.find((i) => i.id === id);
-    if (!entry) return;
-    editingKnownIngredientId = id;
-    editingKnownIngredientCategory = entry.category;
-    document.getElementById('ingredientEditInput').value = entry.text;
+  function openIngredientEditModal(key) {
+    const entry = knownIngredients.find((i) => i.key === key && !i.hidden);
+    editingKnownIngredientKey = key;
+    editingKnownIngredientId = entry ? entry.id : null; // null = todavía es puro diccionario, se crea override al guardar
+    editingKnownIngredientCategory = entry ? entry.category : (PRODUCT_MAP[key] || 'otros');
+    document.getElementById('ingredientEditInput').value = entry ? entry.text : (key.charAt(0).toUpperCase() + key.slice(1));
     renderIngredientEditGrid();
     document.getElementById('ingredientEditOverlay').classList.add('show');
   }
 
   function closeIngredientEditModal() {
     document.getElementById('ingredientEditOverlay').classList.remove('show');
+    editingKnownIngredientKey = null;
     editingKnownIngredientId = null;
     editingKnownIngredientCategory = null;
   }
@@ -1803,33 +1818,54 @@
   }
 
   function saveIngredientEdit() {
-    if (!editingKnownIngredientId) return;
-    const entry = knownIngredients.find((i) => i.id === editingKnownIngredientId);
-    if (!entry) return;
+    if (!editingKnownIngredientKey) return;
     const newText = document.getElementById('ingredientEditInput').value.trim();
     if (!newText) return;
     const newKey = normalize(newText);
-    if (PRODUCT_MAP[newKey]) {
-      alert('Ese nombre ya está en el diccionario fijo de la app, no hace falta guardarlo aparte.');
-      return;
-    }
-    if (knownIngredients.some((i) => i.id !== editingKnownIngredientId && i.key === newKey)) {
+    // choca con otro override/aprendido ya existente (no con el diccionario:
+    // pisar una palabra del diccionario es justamente lo que "editar" hace).
+    if (knownIngredients.some((i) => i.id !== editingKnownIngredientId && i.key === newKey && !i.hidden)) {
       alert('Ya existe un ingrediente guardado con ese nombre.');
       return;
     }
-    entry.text = newText;
-    entry.key = newKey;
-    entry.category = editingKnownIngredientCategory;
+    if (editingKnownIngredientId) {
+      const entry = knownIngredients.find((i) => i.id === editingKnownIngredientId);
+      if (!entry) return;
+      entry.text = newText;
+      entry.key = newKey;
+      entry.category = editingKnownIngredientCategory;
+    } else {
+      knownIngredients.push({ id: uid(), key: newKey, text: newText, category: editingKnownIngredientCategory });
+    }
     saveKnownIngredients();
     closeIngredientEditModal();
     renderIngredientesList();
   }
 
-  function deleteKnownIngredient(id) {
-    const entry = knownIngredients.find((i) => i.id === id);
-    if (!entry) return;
-    if (!confirm(`¿Sacar "${entry.text}" del catálogo de ingredientes? Deja de aparecer como sugerencia.`)) return;
-    knownIngredients = knownIngredients.filter((i) => i.id !== id);
+  function deleteKnownIngredient(key) {
+    const existing = knownIngredients.find((i) => i.key === key && !i.hidden);
+    const isDictionaryWord = !!PRODUCT_MAP[key];
+    const label = existing ? existing.text : key;
+    if (isDictionaryWord) {
+      // no se puede borrar de verdad (vive en el código): se oculta, con
+      // opción de restaurar después desde el mismo listado.
+      if (!confirm(`¿Sacar "${label}" de las sugerencias? Es una palabra predefinida de la app, así que se puede restaurar después.`)) return;
+      if (existing) {
+        existing.hidden = true;
+      } else {
+        knownIngredients.push({ id: uid(), key, text: label, category: PRODUCT_MAP[key], hidden: true });
+      }
+    } else {
+      if (!existing) return;
+      if (!confirm(`¿Sacar "${existing.text}" del catálogo de ingredientes? Deja de aparecer como sugerencia.`)) return;
+      knownIngredients = knownIngredients.filter((i) => i.id !== existing.id);
+    }
+    saveKnownIngredients();
+    renderIngredientesList();
+  }
+
+  function restoreKnownIngredient(key) {
+    knownIngredients = knownIngredients.filter((i) => !(i.key === key && i.hidden));
     saveKnownIngredients();
     renderIngredientesList();
   }
@@ -3548,11 +3584,14 @@
   // en las sugerencias aunque después se borre de la lista o de la receta.
   function getKnownIngredientEntries() {
     const entries = new Map(); // key normalizada -> { label, catId }
-    Object.keys(PRODUCT_MAP).forEach((key) => {
-      entries.set(key, { label: key, catId: PRODUCT_MAP[key] });
-    });
+    const hiddenKeys = new Set();
     knownIngredients.forEach((entry) => {
-      if (!entries.has(entry.key)) entries.set(entry.key, { label: entry.text, catId: entry.category });
+      if (entry.hidden) { hiddenKeys.add(entry.key); return; }
+      entries.set(entry.key, { label: entry.text, catId: entry.category }); // override gana sobre el diccionario
+    });
+    Object.keys(PRODUCT_MAP).forEach((key) => {
+      if (entries.has(key) || hiddenKeys.has(key)) return;
+      entries.set(key, { label: key, catId: PRODUCT_MAP[key] });
     });
     return entries;
   }
@@ -3756,9 +3795,11 @@
       }
       renderStepActionsGrid();
     } else if (action === 'edit-known-ingredient') {
-      openIngredientEditModal(target.dataset.ingId);
+      openIngredientEditModal(target.dataset.ingKey);
     } else if (action === 'delete-known-ingredient') {
-      deleteKnownIngredient(target.dataset.ingId);
+      deleteKnownIngredient(target.dataset.ingKey);
+    } else if (action === 'restore-known-ingredient') {
+      restoreKnownIngredient(target.dataset.ingKey);
     } else if (action === 'select-ingredient-edit-category') {
       editingKnownIngredientCategory = target.dataset.catId;
       renderIngredientEditGrid();
