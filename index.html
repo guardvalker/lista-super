@@ -463,6 +463,7 @@
     display: inline-flex;
     align-items: center;
   }
+  .qty-btn svg { width: 15px; height: 15px; }
   .qty-btn.has-qty { color: var(--accent); }
   .qty-btn:active { color: var(--accent); }
   .edit-btn {
@@ -1345,10 +1346,11 @@
     cloud: `<svg ${ICON_SVG_ATTRS}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>`,
     cloudCheck: `<svg ${ICON_SVG_ATTRS}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M9 15l1.5 1.5L14 13"/></svg>`,
     note: `<svg ${ICON_SVG_ATTRS}><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>`,
+    scale: `<svg ${ICON_SVG_ATTRS}><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-2.5 5a3 3 0 0 0 6 0z"/><path d="M19 7l-2.5 5a3 3 0 0 0 6 0z"/><path d="M8 21h8"/></svg>`,
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.8.0';
+  const APP_VERSION = '2.8.1';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1466,6 +1468,9 @@
     ],
     '2.8.0': [
       'Nuevo botón ⚖️ al lado de editar en cada item de la lista, para anotar cuánto comprar (ej: "500g", "1kg", "2 docenas"). Se ve como una etiqueta al lado del nombre y sincroniza entre dispositivos igual que el resto del item.'
+    ],
+    '2.8.1': [
+      'Los íconos de editar y cantidad de cada item ahora son generados (como los botones de arriba a la derecha) en vez de emojis, para que no desentonen por el contraste de color fijo del emoji contra el tema claro/oscuro.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2142,14 +2147,14 @@
 
         const qtyBtn = document.createElement('button');
         qtyBtn.className = 'qty-btn' + (item.qty ? ' has-qty' : '');
-        qtyBtn.textContent = '⚖️';
+        qtyBtn.innerHTML = ICONS.scale;
         qtyBtn.type = 'button';
         qtyBtn.dataset.action = 'edit-qty';
         qtyBtn.dataset.id = item.id;
 
         const editBtn = document.createElement('button');
         editBtn.className = 'edit-btn';
-        editBtn.textContent = '✏️';
+        editBtn.innerHTML = ICONS.edit;
         editBtn.type = 'button';
         editBtn.dataset.action = 'edit-item';
         editBtn.dataset.id = item.id;
