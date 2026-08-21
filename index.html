@@ -441,6 +441,30 @@
     border-radius: 20px;
     vertical-align: middle;
   }
+  .item-qty {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-dim);
+    background: var(--surface-2, rgba(127,127,127,0.15));
+    padding: 1px 7px;
+    border-radius: 20px;
+    vertical-align: middle;
+  }
+  .qty-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 6px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+  }
+  .qty-btn.has-qty { color: var(--accent); }
+  .qty-btn:active { color: var(--accent); }
   .edit-btn {
     background: none;
     border: none;
@@ -1104,6 +1128,14 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="qtyModalOverlay">
+  <div class="modal">
+    <div class="modal-title">Cantidad / peso</div>
+    <input type="text" id="qtyItemInput" class="modal-input" autocomplete="off" autocorrect="off" placeholder="Ej: 500g, 1kg, 2 docenas">
+    <button class="modal-save-btn" id="qtySaveBtn" type="button">Guardar</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="ingredientEditOverlay">
   <div class="modal">
     <div class="modal-title">Editar ingrediente</div>
@@ -1316,7 +1348,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.7.0';
+  const APP_VERSION = '2.8.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1431,6 +1463,9 @@
     '2.7.0': [
       'Sacamos el candado del catálogo de ingredientes: ahora se puede editar la categoría de cualquier ingrediente, incluidos los predefinidos de la app (queda guardado como tu propia versión, sin tocar el diccionario original).',
       'Los predefinidos no se pueden borrar del todo (viven en el código), pero se pueden ocultar de las sugerencias y restaurar después desde el mismo listado.'
+    ],
+    '2.8.0': [
+      'Nuevo botón ⚖️ al lado de editar en cada item de la lista, para anotar cuánto comprar (ej: "500g", "1kg", "2 docenas"). Se ve como una etiqueta al lado del nombre y sincroniza entre dispositivos igual que el resto del item.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2098,6 +2133,19 @@
           mult.textContent = `x${item.recipeCount}`;
           text.appendChild(mult);
         }
+        if (item.qty) {
+          const qtyBadge = document.createElement('span');
+          qtyBadge.className = 'item-qty';
+          qtyBadge.textContent = item.qty;
+          text.appendChild(qtyBadge);
+        }
+
+        const qtyBtn = document.createElement('button');
+        qtyBtn.className = 'qty-btn' + (item.qty ? ' has-qty' : '');
+        qtyBtn.textContent = '⚖️';
+        qtyBtn.type = 'button';
+        qtyBtn.dataset.action = 'edit-qty';
+        qtyBtn.dataset.id = item.id;
 
         const editBtn = document.createElement('button');
         editBtn.className = 'edit-btn';
@@ -2115,6 +2163,7 @@
 
         li.appendChild(checkbox);
         li.appendChild(text);
+        li.appendChild(qtyBtn);
         li.appendChild(editBtn);
         li.appendChild(delBtn);
         ul.appendChild(li);
@@ -2441,6 +2490,51 @@
       saveEdit();
     } else if (e.key === 'Escape') {
       closeEditModal();
+    }
+  });
+
+  // ---- Modal para cantidad/peso a comprar de un item ----
+  let qtyEditingId = null;
+
+  function openQtyModal(id) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    qtyEditingId = id;
+    const input = document.getElementById('qtyItemInput');
+    input.value = item.qty || '';
+    document.getElementById('qtyModalOverlay').classList.add('show');
+    setTimeout(() => input.focus(), 50);
+  }
+
+  function closeQtyModal() {
+    document.getElementById('qtyModalOverlay').classList.remove('show');
+    qtyEditingId = null;
+  }
+
+  function saveQty() {
+    if (!qtyEditingId) return;
+    const item = items.find(i => i.id === qtyEditingId);
+    if (!item) return;
+    const newQty = document.getElementById('qtyItemInput').value.trim();
+    if (newQty) item.qty = newQty;
+    else delete item.qty;
+    save();
+    render();
+    closeQtyModal();
+  }
+
+  document.getElementById('qtyModalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'qtyModalOverlay') closeQtyModal();
+  });
+
+  document.getElementById('qtySaveBtn').addEventListener('click', saveQty);
+
+  document.getElementById('qtyItemInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveQty();
+    } else if (e.key === 'Escape') {
+      closeQtyModal();
     }
   });
 
@@ -3736,6 +3830,8 @@
       deleteItem(target.dataset.id);
     } else if (action === 'edit-item') {
       openEditModal(target.dataset.id);
+    } else if (action === 'edit-qty') {
+      openQtyModal(target.dataset.id);
     } else if (action === 'pick-category') {
       if (categoryModalTarget === 'ingredient') {
         addIngredientToEditor(pendingText, target.dataset.catId);

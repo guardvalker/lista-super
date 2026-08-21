@@ -35,6 +35,7 @@ create table if not exists ls_items (
   text text not null,
   checked boolean not null default false,
   category text not null,
+  qty text,
   agregado_por uuid references auth.users(id),
   updated_at timestamptz not null default now()
 );

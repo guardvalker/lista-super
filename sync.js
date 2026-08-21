@@ -283,7 +283,7 @@ window.Sync = (function () {
       : { data: [] };
     if (pasoIngRes.error) throw pasoIngRes.error;
 
-    const items = itemsRes.data.map((i) => ({ id: i.id, text: i.text, checked: i.checked, category: i.category }));
+    const items = itemsRes.data.map((i) => ({ id: i.id, text: i.text, checked: i.checked, category: i.category, ...(i.qty ? { qty: i.qty } : {}) }));
 
     const recipes = recetasRes.data.map((r) => ({
       id: r.id,
@@ -425,6 +425,7 @@ window.Sync = (function () {
           text: i.text,
           checked: !!i.checked,
           category: i.category,
+          qty: i.qty || null,
           agregado_por: currentUser ? currentUser.id : null,
           updated_at: nowIso,
         }));
