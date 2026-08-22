@@ -1,0 +1,39 @@
+name: Scrape diario ofertas
+
+on:
+  schedule:
+    - cron: '0 9 * * *'   # 9:00 UTC = 6:00 ARG
+  workflow_dispatch: {}
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install -r scrapers/requirements.txt
+
+      - name: Instalar navegador para Playwright
+        run: playwright install --with-deps chromium
+
+      - name: Precios (Precios Claros)
+        run: python scrapers/precios_claros/fetch_precios.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Promos bancarias
+        run: python scrapers/bancos/run_all.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        continue-on-error: true   # que un banco roto no tumbe la corrida completa
+
+      - name: Notificar si falló
+        if: failure()
+        run: echo "Revisar logs del run en GitHub Actions"

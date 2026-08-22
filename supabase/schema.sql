@@ -335,3 +335,78 @@ grant execute on function replace_receta(uuid, uuid, jsonb) to authenticated;
 alter publication supabase_realtime add table
   ls_items, ls_recetas, ls_receta_ingredientes, ls_receta_subrecetas,
   ls_receta_pasos, ls_paso_ingredientes, ls_weekly_plan_entries, ls_miembros;
+
+-- ----------------------------------------------------------------------------
+-- Ofertas: precios de supermercados + promos bancarias (botón "% Ofertas").
+--
+-- Distinto de las tablas ls_* de arriba: son datos de referencia globales,
+-- no scopeados a una lista_id, sin prefijo ls_. Se escriben solo desde
+-- scrapers/ (GitHub Actions, service_role key -- bypassea RLS). La PWA
+-- (anon key) solo lee. Ver migration_ofertas.sql para el detalle de por qué
+-- `precios` guarda un rango agregado por producto/día y no precio por
+-- sucursal individual (limitación real de la API de Precios Claros).
+-- ----------------------------------------------------------------------------
+
+create table if not exists sucursales (
+  id text primary key,
+  cadena text not null,
+  direccion text,
+  localidad text,
+  lat double precision,
+  lng double precision,
+  distancia_km numeric,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists productos (
+  id text primary key,
+  nombre text not null,
+  marca text,
+  presentacion text,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists precios (
+  id bigserial primary key,
+  producto_id text not null references productos(id) on delete cascade,
+  fecha date not null,
+  precio_min numeric not null,
+  precio_max numeric not null,
+  cant_sucursales integer,
+  created_at timestamptz not null default now(),
+  unique (producto_id, fecha)
+);
+
+create table if not exists promos_bancarias (
+  id bigserial primary key,
+  fuente text not null,
+  supermercado text,
+  descuento_pct numeric,
+  tope_reintegro numeric,
+  dias_semana text[],
+  medio_pago text,
+  vigencia_desde date,
+  vigencia_hasta date,
+  condiciones_texto text,
+  raw_text text,
+  scraped_at timestamptz not null default now()
+);
+
+create index if not exists precios_producto_idx on precios (producto_id, fecha desc);
+create index if not exists promos_bancarias_vigencia_idx on promos_bancarias (vigencia_desde, vigencia_hasta);
+create index if not exists promos_bancarias_super_idx on promos_bancarias (supermercado);
+
+alter table sucursales enable row level security;
+alter table productos enable row level security;
+alter table precios enable row level security;
+alter table promos_bancarias enable row level security;
+
+grant select on sucursales to anon, authenticated;
+grant select on productos to anon, authenticated;
+grant select on precios to anon, authenticated;
+grant select on promos_bancarias to anon, authenticated;
+
+create policy "sucursales_select" on sucursales for select using (true);
+create policy "productos_select" on productos for select using (true);
+create policy "precios_select" on precios for select using (true);
+create policy "promos_bancarias_select" on promos_bancarias for select using (true);
