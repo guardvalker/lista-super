@@ -611,6 +611,29 @@
     box-shadow: var(--shadow);
   }
   .modal-save-btn:active { transform: scale(0.98); }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 14px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 10px;
+    text-align: left;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .settings-row:active { transform: scale(0.98); }
+  .settings-row-icon { display: flex; width: 20px; height: 20px; flex-shrink: 0; }
+  .settings-row-icon svg { width: 20px; height: 20px; }
+  .settings-row-label { flex: 1; }
+  .settings-row-value { color: var(--text-dim); font-size: 13px; font-weight: 500; }
 
   .header-actions { display: flex; gap: 8px; }
   .version-history-group { margin-bottom: 10px; }
@@ -1061,8 +1084,8 @@
       <div class="header-actions">
         <button class="theme-toggle" id="recetasBtn" type="button" aria-label="Recetas"></button>
         <button class="theme-toggle" id="menuBtn" type="button" aria-label="Menú semanal"></button>
-        <button class="theme-toggle" id="accountBtn" type="button" aria-label="Cuenta y sincronización" style="display:none;"></button>
-        <button class="theme-toggle" id="themeToggle" type="button" aria-label="Cambiar tema"></button>
+        <button class="theme-toggle" id="ofertasBtn" type="button" aria-label="Ofertas"></button>
+        <button class="theme-toggle" id="settingsBtn" type="button" aria-label="Ajustes"></button>
       </div>
     </div>
     <div class="subtitle" id="counter">0 items</div>
@@ -1144,6 +1167,29 @@
     <div class="modal-subtitle">Categoría</div>
     <div class="modal-grid" id="ingredientEditGrid"></div>
     <button class="modal-save-btn" id="ingredientEditSaveBtn" type="button">Guardar cambios</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="settingsOverlay">
+  <div class="modal">
+    <div class="modal-title">Ajustes</div>
+    <button class="settings-row" id="themeToggle" type="button">
+      <span class="settings-row-icon" id="themeToggleIcon"></span>
+      <span class="settings-row-label">Tema</span>
+      <span class="settings-row-value" id="themeToggleValue"></span>
+    </button>
+    <button class="settings-row" id="accountBtn" type="button" style="display:none;">
+      <span class="settings-row-icon" id="accountBtnIcon"></span>
+      <span class="settings-row-label">Cuenta y sincronización</span>
+    </button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ofertasOverlay">
+  <div class="modal">
+    <div class="modal-title">% Ofertas</div>
+    <div class="modal-subtitle">Muy pronto vas a poder ver acá ofertas y promociones. ¡Estamos trabajando en esto!</div>
+    <button class="modal-save-btn" id="ofertasCloseBtn" type="button">Entendido</button>
   </div>
 </div>
 
@@ -1347,10 +1393,12 @@
     cloudCheck: `<svg ${ICON_SVG_ATTRS}><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M9 15l1.5 1.5L14 13"/></svg>`,
     note: `<svg ${ICON_SVG_ATTRS}><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>`,
     scale: `<svg ${ICON_SVG_ATTRS}><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-2.5 5a3 3 0 0 0 6 0z"/><path d="M19 7l-2.5 5a3 3 0 0 0 6 0z"/><path d="M8 21h8"/></svg>`,
+    percent: `<svg ${ICON_SVG_ATTRS}><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>`,
+    gear: `<svg ${ICON_SVG_ATTRS}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82A1.65 1.65 0 0 0 3 13.09H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.8.1';
+  const APP_VERSION = '2.8.2';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1471,6 +1519,10 @@
     ],
     '2.8.1': [
       'Los íconos de editar y cantidad de cada item ahora son generados (como los botones de arriba a la derecha) en vez de emojis, para que no desentonen por el contraste de color fijo del emoji contra el tema claro/oscuro.'
+    ],
+    '2.8.2': [
+      'Nuevo botón ⚙️ de Ajustes arriba a la derecha: ahí se movieron el cambio de tema (☀️/🌙) y el de cuenta y sincronización (☁️), que antes estaban sueltos en el encabezado.',
+      'Nuevo botón % (Ofertas) en el encabezado, como adelanto de una función de ofertas y promociones que vamos a construir próximamente.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1480,8 +1532,10 @@
 
   function applyTheme() {
     document.documentElement.setAttribute('data-theme', theme);
-    const btn = document.getElementById('themeToggle');
-    if (btn) btn.innerHTML = theme === 'dark' ? ICONS.sun : ICONS.moon;
+    const icon = document.getElementById('themeToggleIcon');
+    if (icon) icon.innerHTML = theme === 'dark' ? ICONS.sun : ICONS.moon;
+    const value = document.getElementById('themeToggleValue');
+    if (value) value.textContent = theme === 'dark' ? 'Oscuro' : 'Claro';
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', theme === 'dark' ? '#1e1e2e' : '#eff1f5');
   }
@@ -1490,12 +1544,14 @@
   function applyStaticIcons() {
     document.getElementById('recetasBtn').innerHTML = ICONS.cooking;
     document.getElementById('menuBtn').innerHTML = ICONS.calendar;
+    document.getElementById('ofertasBtn').innerHTML = ICONS.percent;
+    document.getElementById('settingsBtn').innerHTML = ICONS.gear;
     document.getElementById('menuBackBtn').innerHTML = ICONS.back;
     document.getElementById('recipesLibraryBtn').innerHTML = ICONS.list;
     document.getElementById('recetasBackBtn').innerHTML = ICONS.back;
     document.getElementById('recipeDetailBackBtn').innerHTML = ICONS.back;
     document.getElementById('recipeDetailEditBtn').innerHTML = ICONS.edit;
-    document.getElementById('accountBtn').innerHTML = ICONS.cloud;
+    document.getElementById('accountBtnIcon').innerHTML = ICONS.cloud;
     document.getElementById('ingredientesBtn').innerHTML = ICONS.list;
     document.getElementById('recipeIngListBtn').innerHTML = ICONS.list;
     document.getElementById('ingredientesBackBtn').innerHTML = ICONS.back;
@@ -2613,9 +2669,31 @@
     return 'uploaded';
   }
 
-  document.getElementById('accountBtn').addEventListener('click', openAccountModal);
+  document.getElementById('accountBtn').addEventListener('click', () => {
+    document.getElementById('settingsOverlay').classList.remove('show');
+    openAccountModal();
+  });
   document.getElementById('accountOverlay').addEventListener('click', (e) => {
     if (e.target.id === 'accountOverlay') closeAccountModal();
+  });
+
+  // ---- Ajustes ----
+  document.getElementById('settingsBtn').addEventListener('click', () => {
+    document.getElementById('settingsOverlay').classList.add('show');
+  });
+  document.getElementById('settingsOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'settingsOverlay') document.getElementById('settingsOverlay').classList.remove('show');
+  });
+
+  // ---- Ofertas (próximamente) ----
+  document.getElementById('ofertasBtn').addEventListener('click', () => {
+    document.getElementById('ofertasOverlay').classList.add('show');
+  });
+  document.getElementById('ofertasCloseBtn').addEventListener('click', () => {
+    document.getElementById('ofertasOverlay').classList.remove('show');
+  });
+  document.getElementById('ofertasOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'ofertasOverlay') document.getElementById('ofertasOverlay').classList.remove('show');
   });
 
   document.getElementById('accountSendLinkBtn').addEventListener('click', async () => {
@@ -3951,11 +4029,11 @@
     document.getElementById('accountBtn').style.display = '';
     window.Sync.init({
       onAuthChange: () => {
-        document.getElementById('accountBtn').innerHTML =
+        document.getElementById('accountBtnIcon').innerHTML =
           window.Sync.getListaId() ? ICONS.cloudCheck : ICONS.cloud;
       },
       onListaChange: () => {
-        document.getElementById('accountBtn').innerHTML =
+        document.getElementById('accountBtnIcon').innerHTML =
           window.Sync.getListaId() ? ICONS.cloudCheck : ICONS.cloud;
       },
       onRemoteData: (remote) => applyRemoteState(remote),
