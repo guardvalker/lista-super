@@ -33,15 +33,7 @@ import requests
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "common"))
 from supabase_client import get_client  # noqa: E402
-
-BASE_URL = "https://d3e6htiiul5ek9.cloudfront.net/prod"
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Origin": "https://www.preciosclaros.gob.ar",
-    "Referer": "https://www.preciosclaros.gob.ar/",
-}
+from precios_claros_http import BASE_URL, HEADERS  # noqa: E402
 
 # La Lucila / Martínez, zona norte GBA -- la zona real del usuario.
 LAT = -34.4839

@@ -34,15 +34,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "common"))
 from supabase_client import get_client, is_configured  # noqa: E402
 from productos_interes import PRODUCTOS_INTERES  # noqa: E402
-
-BASE_URL = "https://d3e6htiiul5ek9.cloudfront.net/prod"
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Origin": "https://www.preciosclaros.gob.ar",
-    "Referer": "https://www.preciosclaros.gob.ar/",
-}
+from precios_claros_http import BASE_URL, HEADERS  # noqa: E402
 
 MAX_SUCURSALES_POR_QUERY = 50  # tope real de la API (maxCantSucursalesPermitido)
 PRODUCTOS_POR_QUERY = 20  # cuántos resultados por término de búsqueda nos quedamos
