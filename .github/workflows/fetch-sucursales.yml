@@ -1,0 +1,29 @@
+name: Cargar sucursales (una vez / manual)
+
+# Carga inicial de la tabla `sucursales` de Precios Claros para Zona
+# Norte/GBA. NO corre por cron a propósito -- solo hace falta correrlo una
+# vez (o cada tanto si se quiere ampliar/actualizar el radio cubierto), a
+# diferencia de "Scrape diario ofertas" que sí corre todos los días.
+# fetch_precios.py depende de que esta tabla ya tenga datos.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  fetch_sucursales:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install -r scrapers/requirements.txt
+
+      - name: Cargar sucursales
+        run: python scrapers/precios_claros/fetch_sucursales.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
