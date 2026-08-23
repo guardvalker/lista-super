@@ -7,7 +7,7 @@ on:
 
 jobs:
   scrape:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 
@@ -19,7 +19,7 @@ jobs:
         run: pip install -r scrapers/requirements.txt
 
       - name: Instalar navegador para Playwright
-        run: playwright install --with-deps chromium
+        run: playwright install chromium
 
       - name: Precios (Precios Claros)
         run: python scrapers/precios_claros/fetch_precios.py
