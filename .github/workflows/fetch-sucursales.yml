@@ -15,15 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Instalar dependencias
-        run: pip install -r scrapers/requirements.txt
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -r scrapers/requirements.txt
 
       - name: Cargar sucursales
-        run: python scrapers/precios_claros/fetch_sucursales.py
+        run: .venv/bin/python scrapers/precios_claros/fetch_sucursales.py
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
