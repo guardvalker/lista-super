@@ -1433,7 +1433,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.9.0';
+  const APP_VERSION = '2.9.1';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1561,6 +1561,9 @@
     ],
     '2.9.0': [
       'El botón % (Ofertas) ya no es un adelanto: ahora muestra los descuentos bancarios vigentes hoy (Provincia, ICBC, Galicia y Carrefour) con banco, cadena, tope de reintegro y medio de pago, actualizados todos los días.'
+    ],
+    '2.9.1': [
+      'Arreglamos las mayúsculas de los medios de pago con acento en % Ofertas (ej: aparecía "DéBito" en vez de "Débito").'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2738,9 +2741,15 @@
   }
 
   function humanizarTexto(s) {
+    // Capitalizamos por palabra partiendo en espacios en vez de \b\w: con
+    // acentos (ej. "débito"), \b\w trata la vocal acentuada como no-\w y
+    // termina capitalizando la letra siguiente en vez de la primera
+    // ("DéBito" en vez de "Débito").
     return (s || '')
       .replace(/_/g, ' ')
-      .replace(/\b\w/g, (ch) => ch.toUpperCase())
+      .split(' ')
+      .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+      .join(' ')
       .replace(/\bDni\b/, 'DNI');
   }
 
