@@ -389,7 +389,11 @@ create table if not exists promos_bancarias (
   vigencia_hasta date,
   condiciones_texto text,
   raw_text text,
-  scraped_at timestamptz not null default now()
+  scraped_at timestamptz not null default now(),
+  -- respalda el on_conflict del upsert en run_all.py: sin esto, cada
+  -- corrida diaria del cron reinserta la misma promo en vez de
+  -- actualizarla (ver migration_promos_bancarias_dedup.sql)
+  unique (fuente, supermercado, descuento_pct, dias_semana, medio_pago)
 );
 
 create index if not exists precios_producto_idx on precios (producto_id, fecha desc);

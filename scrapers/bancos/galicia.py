@@ -17,12 +17,17 @@ investigar el detalle de cada promo por separado (no confirmado que
 exista).
 """
 
+import os
 import re
 import sys
 import traceback
 import unicodedata
 
 import requests
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "common"))
+from dedupe import unicos_por_clave  # noqa: E402
+from timestamps import scraped_at  # noqa: E402
 
 FUENTE = "galicia"
 
@@ -74,7 +79,7 @@ def _medio_pago(item):
         tipo = (medio.get("tipoTarjeta") or "").strip().lower()
         if marca:
             partes.append(f"{marca}_{tipo}" if tipo else marca)
-    return ",".join(dict.fromkeys(partes)) or None
+    return ",".join(dict.fromkeys(partes))
 
 
 def _parse_item(item):
@@ -96,7 +101,7 @@ def _parse_item(item):
 
     return {
         "fuente": FUENTE,
-        "supermercado": supermercado or None,
+        "supermercado": supermercado or "sin_dato",
         "descuento_pct": int(pct_m.group(1)),
         "tope_reintegro": None,
         "dias_semana": _dias_semana(leyenda_dias),
@@ -105,6 +110,7 @@ def _parse_item(item):
         "vigencia_hasta": vigencia_hasta,
         "condiciones_texto": condiciones,
         "raw_text": condiciones,
+        "scraped_at": scraped_at(),
     }
 
 
@@ -128,6 +134,8 @@ def run():
         print(f"[{FUENTE}] ERROR -- se omite esta fuente, no se tumba el resto del pipeline:")
         traceback.print_exc(file=sys.stdout)
         return []
+
+    promos = unicos_por_clave(promos)
 
     if not promos:
         print(f"[{FUENTE}] ADVERTENCIA: no se encontró ninguna promo con %% -- revisar si cambió la API.")

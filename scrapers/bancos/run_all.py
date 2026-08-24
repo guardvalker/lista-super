@@ -27,6 +27,11 @@ SCRAPERS = [
     galicia,
 ]
 
+# Constraint unique en supabase/schema.sql -- corriendo el cron a diario sin
+# esto, cada promo se reinsertaba en vez de actualizarse (ver
+# supabase/migration_promos_bancarias_dedup.sql).
+ON_CONFLICT_PROMOS = "fuente,supermercado,descuento_pct,dias_semana,medio_pago"
+
 
 def main():
     client = get_client()
@@ -47,7 +52,7 @@ def main():
             continue
 
         try:
-            client.table("promos_bancarias").upsert(promos).execute()
+            client.table("promos_bancarias").upsert(promos, on_conflict=ON_CONFLICT_PROMOS).execute()
             print(f"[{nombre}] {len(promos)} promo(s) guardadas")
             total += len(promos)
         except Exception:

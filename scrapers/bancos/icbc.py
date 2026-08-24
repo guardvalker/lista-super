@@ -16,10 +16,15 @@ texto legal -- sin necesidad de regex. Todos los campos numéricos vienen
 como strings en el JSON (ej. "ahorro_maximo": "20").
 """
 
+import os
 import sys
 import traceback
 
 import requests
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "common"))
+from dedupe import unicos_por_clave  # noqa: E402
+from timestamps import scraped_at  # noqa: E402
 
 FUENTE = "icbc"
 
@@ -68,7 +73,7 @@ def _medio_pago(item):
     partes = [c.lower() for c in (item.get("cards") or [])] + [
         s.lower() for s in (item.get("system") or [])
     ]
-    return ",".join(dict.fromkeys(partes)) or None
+    return ",".join(dict.fromkeys(partes))
 
 
 def _fecha(s):
@@ -85,7 +90,7 @@ def _parse_item(item):
 
     return {
         "fuente": FUENTE,
-        "supermercado": (item.get("store") or "").strip().lower().replace(" ", "_") or None,
+        "supermercado": (item.get("store") or "").strip().lower().replace(" ", "_") or "sin_dato",
         "descuento_pct": pct,
         "tope_reintegro": _tope_reintegro(item),
         "dias_semana": _dias_semana(item),
@@ -94,6 +99,7 @@ def _parse_item(item):
         "vigencia_hasta": _fecha(item.get("date_end")),
         "condiciones_texto": (item.get("legal") or "").strip(),
         "raw_text": (item.get("legal") or "").strip(),
+        "scraped_at": scraped_at(),
     }
 
 
@@ -125,6 +131,8 @@ def run():
         print(f"[{FUENTE}] ERROR -- se omite esta fuente, no se tumba el resto del pipeline:")
         traceback.print_exc(file=sys.stdout)
         return []
+
+    promos = unicos_por_clave(promos)
 
     if not promos:
         print(f"[{FUENTE}] ADVERTENCIA: no se encontró ninguna promo de super -- revisar si cambió la API.")

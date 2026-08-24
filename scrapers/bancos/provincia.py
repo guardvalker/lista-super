@@ -22,9 +22,14 @@ una lista vacía en vez de tirar una excepción -- así un banco roto no
 tumba el resto del pipeline (ver run_all.py).
 """
 
+import os
 import re
 import sys
 import traceback
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "common"))
+from dedupe import unicos_por_clave  # noqa: E402
+from timestamps import scraped_at  # noqa: E402
 
 URL = "https://www.bancoprovincia.com.ar/cuentadni/buscadores/supermercados"
 FUENTE = "provincia"
@@ -87,6 +92,7 @@ def _parse_bloque(texto):
         "vigencia_hasta": None,
         "condiciones_texto": texto.strip(),
         "raw_text": texto.strip(),
+        "scraped_at": scraped_at(),
     }
 
 
@@ -118,16 +124,12 @@ def run():
             page.wait_for_timeout(2000)
 
             bloques = _extraer_bloques_promo(page)
-            vistos = set()
-            for texto in bloques:
-                promo = _parse_bloque(texto)
-                if not promo:
-                    continue
-                key = (promo["descuento_pct"], tuple(promo["dias_semana"]), promo["raw_text"])
-                if key in vistos:
-                    continue
-                vistos.add(key)
-                promos.append(promo)
+            # La página suele repetir la misma promo en 2 bloques de texto
+            # (una versión corta tipo blurb + el legal completo) -- se
+            # resuelve en unicos_por_clave (misma clave de upsert, se
+            # queda con el texto más completo).
+            candidatos = [p for p in (_parse_bloque(t) for t in bloques) if p]
+            promos = unicos_por_clave(candidatos)
 
             browser.close()
     except Exception:
