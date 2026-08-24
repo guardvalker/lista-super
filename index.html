@@ -1226,13 +1226,11 @@
 
 <div class="modal-overlay" id="ofertasOverlay">
   <div class="modal">
-    <div class="modal-title">% Ofertas</div>
-    <div class="modal-subtitle" id="ofertasSubtitle">Buscando descuentos bancarios de hoy...</div>
-    <div class="ofertas-list" id="ofertasList"></div>
+    <div class="modal-title">💲 Precio de referencia</div>
     <button class="toggle-btn" id="precioPromedioToggleBtn" type="button">
       <span id="precioPromedioIcon">📊</span> <span id="precioPromedioLabel">Mostrar precio promedio en la lista</span>
     </button>
-    <div class="modal-subtitle" style="margin-top:6px;margin-bottom:0;">Precio de referencia de Precios Claros. Solo para almacén, lácteos, bebidas, limpieza, panadería y similares -- no confiable para frescos (frutas, verduras, carnes, pescado), así que ahí no se muestra.</div>
+    <div class="modal-subtitle" style="margin-top:6px;margin-bottom:0;">Precio de referencia de Precios Claros, actualizado cada 2 semanas. Solo para almacén, lácteos, bebidas, limpieza, panadería y similares -- no confiable para frescos (frutas, verduras, carnes, pescado), así que ahí no se muestra.</div>
     <button class="modal-save-btn" id="ofertasCloseBtn" type="button">Entendido</button>
   </div>
 </div>
@@ -1443,7 +1441,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.10.0';
+  const APP_VERSION = '2.11.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1577,6 +1575,10 @@
     ],
     '2.10.0': [
       'Nuevo botón "Mostrar precio promedio en la lista" dentro de % Ofertas: cuando está activado, cada ingrediente de almacén/lácteos/bebidas/limpieza/panadería muestra abajo un precio de referencia (mediana de Precios Claros) para saber si lo estás pagando caro o barato. No aparece en frutas, verduras, carnes ni pescado porque esos productos frescos no tienen buen dato en esa fuente.'
+    ],
+    '2.11.0': [
+      'Sacamos los descuentos bancarios (mezclaban comercios chicos con las cadenas grandes y no tenían info de distancia real) -- el botón ahora es directo "Precio de referencia".',
+      'El precio de referencia ahora se actualiza cada 2 semanas (antes era diario) y de a poco va a ir cubriendo más ingredientes: cualquier cosa nueva que escribas en la lista y no esté en el diccionario fijo, se suma sola a la próxima corrida.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2749,12 +2751,9 @@
   });
 
   // ---- Ofertas: descuentos bancarios vigentes hoy ----
-  // Fase 3 del sistema de % Ofertas: solo promos bancarias filtradas por
-  // día de la semana y vigencia (no cruza con precios de productos, ver
-  // memoria del proyecto). Lectura directa con la anon key -- promos_bancarias
-  // es de lectura pública (RLS), no depende de que el usuario esté logueado
-  // ni de window.Sync.
-  const DIAS_JS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+  // Modal de precio de referencia (ex "% Ofertas" -- las promos bancarias
+  // se sacaron, ver memoria del proyecto). Lectura directa con la anon key,
+  // no depende de que el usuario esté logueado ni de window.Sync.
   let sbOfertas = null;
 
   function ofertasConfigurado() {
@@ -2762,93 +2761,9 @@
     return !!(c && c.url && c.anonKey && !c.url.includes('TU-PROYECTO'));
   }
 
-  function humanizarTexto(s) {
-    // Capitalizamos por palabra partiendo en espacios en vez de \b\w: con
-    // acentos (ej. "débito"), \b\w trata la vocal acentuada como no-\w y
-    // termina capitalizando la letra siguiente en vez de la primera
-    // ("DéBito" en vez de "Débito").
-    return (s || '')
-      .replace(/_/g, ' ')
-      .split(' ')
-      .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
-      .join(' ')
-      .replace(/\bDni\b/, 'DNI');
-  }
-
-  function humanizarMedioPago(s) {
-    if (!s) return 'Medio de pago no informado';
-    return s.split(',').filter(Boolean).map(humanizarTexto).join(', ');
-  }
-
-  function formatearTope(monto) {
-    return '$' + Math.round(monto).toLocaleString('es-AR');
-  }
-
-  function renderOfertas(promos, diaHoy) {
-    const subtitle = document.getElementById('ofertasSubtitle');
-    const list = document.getElementById('ofertasList');
-
-    if (promos.length === 0) {
-      subtitle.textContent = 'No encontramos descuentos bancarios activos para hoy.';
-      list.innerHTML = '';
-      return;
-    }
-
-    subtitle.textContent = `Descuentos bancarios activos hoy (${humanizarTexto(diaHoy)})`;
-    list.innerHTML = promos.map((p) => {
-      const cadena = p.supermercado && p.supermercado !== 'sin_dato' ? ` · ${humanizarTexto(p.supermercado)}` : '';
-      const tope = p.tope_reintegro ? `<div class="oferta-linea2">Tope: ${formatearTope(p.tope_reintegro)}</div>` : '';
-      return `
-        <div class="oferta-card">
-          <div class="oferta-pct">${p.descuento_pct}%</div>
-          <div class="oferta-info">
-            <div class="oferta-linea1">${humanizarTexto(p.fuente)}${cadena}</div>
-            <div class="oferta-linea2">${humanizarMedioPago(p.medio_pago)}</div>
-            ${tope}
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  async function cargarOfertas() {
-    const subtitle = document.getElementById('ofertasSubtitle');
-    const list = document.getElementById('ofertasList');
-    list.innerHTML = '';
-
-    if (!ofertasConfigurado()) {
-      subtitle.textContent = 'Todavía no configuramos esto -- volvé a intentar más tarde.';
-      return;
-    }
-
-    subtitle.textContent = 'Buscando descuentos bancarios de hoy...';
-    try {
-      if (!sbOfertas) {
-        sbOfertas = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
-      }
-      const { data, error } = await sbOfertas.from('promos_bancarias').select('*');
-      if (error) throw error;
-
-      const hoyIso = new Date().toISOString().slice(0, 10);
-      const diaHoy = DIAS_JS[new Date().getDay()];
-      const vigentes = (data || []).filter((p) => {
-        const enDia = Array.isArray(p.dias_semana) && p.dias_semana.includes(diaHoy);
-        const desdeOk = !p.vigencia_desde || p.vigencia_desde <= hoyIso;
-        const hastaOk = !p.vigencia_hasta || p.vigencia_hasta >= hoyIso;
-        return enDia && desdeOk && hastaOk;
-      });
-      vigentes.sort((a, b) => (b.descuento_pct || 0) - (a.descuento_pct || 0));
-
-      renderOfertas(vigentes, diaHoy);
-    } catch (err) {
-      console.error('[Ofertas]', err);
-      subtitle.textContent = 'No pudimos cargar las ofertas ahora. Probá de nuevo más tarde.';
-    }
-  }
-
   document.getElementById('ofertasBtn').addEventListener('click', () => {
     document.getElementById('ofertasOverlay').classList.add('show');
-    cargarOfertas();
+    if (mostrarPrecioPromedio) cargarPreciosTermino();
   });
   document.getElementById('ofertasCloseBtn').addEventListener('click', () => {
     document.getElementById('ofertasOverlay').classList.remove('show');
@@ -2859,12 +2774,13 @@
 
   // ---- Precio promedio de referencia bajo cada ingrediente ----
   // Cruza los items de la lista contra precios_termino (mediana de
-  // Precios Claros por término de búsqueda, ver fetch_precios.py). Se
-  // resuelve al mismo término que ya usa detectCategory() para categorizar
-  // el item (PRODUCT_MAP/PRODUCTOS_INTERES comparten exactamente el mismo
-  // vocabulario), pero sin pasar por el override de knownIngredients: acá
-  // nos interesa qué término real de Precios Claros matchea, no qué
-  // categoría eligió el usuario.
+  // Precios Claros por término de búsqueda, ver fetch_precios.py). Primero
+  // prueba contra PRODUCT_MAP (los 328 términos curados, comparten
+  // vocabulario con PRODUCTOS_INTERES del scraper); si no matchea nada ahí,
+  // cae a knownIngredients (== ls_ingredientes_conocidos, lo que el usuario
+  // fue tipeando y no estaba en el diccionario fijo) -- el scraper suma esos
+  // mismos términos vía get_terminos_aprendidos, así que un ingrediente
+  // nuevo eventualmente consigue precio solo, sin tocar código.
   //
   // Categorías excluidas a propósito (probado en vivo, 2026-08-24): Precios
   // Claros es un catálogo por código de barras, así que frutas/verduras/
@@ -2884,6 +2800,19 @@
     }
     for (const w of text.split(/\s+/)) {
       if (PRODUCT_MAP[w]) return w;
+    }
+
+    const aprendidos = knownIngredients.filter((i) => !i.hidden);
+    const exacto = aprendidos.find((i) => i.key === text);
+    if (exacto) return exacto.key;
+    const porSubstring = aprendidos
+      .slice()
+      .sort((a, b) => b.key.length - a.key.length)
+      .find((i) => text.includes(i.key));
+    if (porSubstring) return porSubstring.key;
+    for (const w of text.split(/\s+/)) {
+      const porPalabra = aprendidos.find((i) => i.key === w);
+      if (porPalabra) return porPalabra.key;
     }
     return null;
   }

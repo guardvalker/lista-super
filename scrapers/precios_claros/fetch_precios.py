@@ -1,9 +1,11 @@
-"""Scraper diario de precios (Precios Claros).
+"""Scraper de precios de referencia (Precios Claros). Corre cada 2 semanas
+(1 y 15 de cada mes, ver .github/workflows/scrape-diario.yml).
 
-Para cada producto de interés (scrapers/common/productos_interes.py),
-consulta el endpoint de búsqueda de Precios Claros contra las sucursales
-más cercanas ya guardadas en la tabla `sucursales`, y guarda un
-precio_min/precio_max agregado del día.
+Para cada producto de interés (scrapers/common/productos_interes.py) más
+los términos que el uso real fue sumando a `ls_ingredientes_conocidos`
+(ver get_terminos_aprendidos), consulta el endpoint de búsqueda de Precios
+Claros contra las sucursales más cercanas ya guardadas en la tabla
+`sucursales`, y guarda un precio_min/precio_max agregado del día.
 
 Uso:
     SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... python fetch_precios.py
@@ -39,6 +41,18 @@ from precios_claros_http import BASE_URL, HEADERS  # noqa: E402
 MAX_SUCURSALES_POR_QUERY = 50  # tope real de la API (maxCantSucursalesPermitido)
 PRODUCTOS_POR_QUERY = 20  # cuántos resultados por término de búsqueda nos quedamos
 RATE_LIMIT_SECONDS = 0.4  # entre 300-500ms recomendado por el spec
+
+
+def get_terminos_aprendidos(client):
+    """Ingredientes que el usuario tipeó a mano y no estaban en el
+    diccionario fijo (ver `learnIngredient()` en index.html) -- crecen solos
+    con el uso, vía `ls_ingredientes_conocidos`. `key` ya viene normalizado
+    (mismo `normalize()` del cliente: sin tildes, en minúscula).
+    """
+    if not is_configured():
+        return []  # dry-run: no hay base real de la que leer esto
+    res = client.table("ls_ingredientes_conocidos").select("key").execute()
+    return sorted({r["key"] for r in res.data if r.get("key")})
 
 
 def get_sucursal_ids(client):
@@ -80,13 +94,18 @@ def main():
         print("ADVERTENCIA: no hay sucursales cargadas -- correr fetch_sucursales.py primero.")
         return
 
+    terminos_aprendidos = [t for t in get_terminos_aprendidos(client) if t not in PRODUCTOS_INTERES]
+    if terminos_aprendidos:
+        print(f"Sumando {len(terminos_aprendidos)} términos aprendidos desde ls_ingredientes_conocidos")
+    terminos = PRODUCTOS_INTERES + terminos_aprendidos
+
     hoy = datetime.date.today().isoformat()
     productos_rows = []
     precios_rows = []
     precios_termino_rows = []
     vistos = set()
 
-    for i, termino in enumerate(PRODUCTOS_INTERES):
+    for i, termino in enumerate(terminos):
         try:
             resultados = buscar_producto(termino, sucursal_ids)
         except requests.RequestException as e:
@@ -141,7 +160,7 @@ def main():
             )
 
         if (i + 1) % 25 == 0:
-            print(f"  ...{i + 1}/{len(PRODUCTOS_INTERES)} términos consultados")
+            print(f"  ...{i + 1}/{len(terminos)} términos consultados")
         time.sleep(RATE_LIMIT_SECONDS)
 
     print(f"Encontrados {len(productos_rows)} productos distintos, {len(precios_rows)} precios de hoy")

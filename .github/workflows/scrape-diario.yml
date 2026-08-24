@@ -1,8 +1,8 @@
-name: Scrape diario ofertas
+name: Scrape precios de referencia
 
 on:
   schedule:
-    - cron: '0 9 * * *'   # 9:00 UTC = 6:00 ARG
+    - cron: '0 9 1,15 * *'   # 9:00 UTC = 6:00 ARG, el 1 y el 15 de cada mes
   workflow_dispatch: {}
 
 jobs:
@@ -16,21 +16,11 @@ jobs:
           python3 -m venv .venv
           .venv/bin/pip install -r scrapers/requirements.txt
 
-      - name: Instalar navegador para Playwright
-        run: .venv/bin/playwright install chromium
-
       - name: Precios (Precios Claros)
         run: .venv/bin/python scrapers/precios_claros/fetch_precios.py
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-
-      - name: Promos bancarias
-        run: .venv/bin/python scrapers/bancos/run_all.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        continue-on-error: true   # que un banco roto no tumbe la corrida completa
 
       - name: Notificar si falló
         if: failure()
