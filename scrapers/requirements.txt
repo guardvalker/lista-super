@@ -2,3 +2,4 @@ requests
 supabase
 playwright
 python-dateutil
+beautifulsoup4
