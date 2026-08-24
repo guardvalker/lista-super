@@ -1,7 +1,7 @@
 // Service Worker - Lista del Super
 // Cachea los archivos de la app la primera vez para que funcione sin internet después.
 
-const CACHE_NAME = 'lista-super-v34';
+const CACHE_NAME = 'lista-super-v35';
 const FILES_TO_CACHE = [
   './',
   './index.html',

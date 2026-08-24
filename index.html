@@ -555,6 +555,40 @@
     color: var(--text-dim);
     margin-bottom: 16px;
   }
+  .ofertas-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .oferta-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+  .oferta-pct {
+    flex: none;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 48px;
+    text-align: center;
+  }
+  .oferta-info { min-width: 0; }
+  .oferta-linea1 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .oferta-linea2 {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
   .modal-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -1188,7 +1222,8 @@
 <div class="modal-overlay" id="ofertasOverlay">
   <div class="modal">
     <div class="modal-title">% Ofertas</div>
-    <div class="modal-subtitle">Muy pronto vas a poder ver acá ofertas y promociones. ¡Estamos trabajando en esto!</div>
+    <div class="modal-subtitle" id="ofertasSubtitle">Buscando descuentos bancarios de hoy...</div>
+    <div class="ofertas-list" id="ofertasList"></div>
     <button class="modal-save-btn" id="ofertasCloseBtn" type="button">Entendido</button>
   </div>
 </div>
@@ -1398,7 +1433,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.8.2';
+  const APP_VERSION = '2.9.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1523,6 +1558,9 @@
     '2.8.2': [
       'Nuevo botón ⚙️ de Ajustes arriba a la derecha: ahí se movieron el cambio de tema (☀️/🌙) y el de cuenta y sincronización (☁️), que antes estaban sueltos en el encabezado.',
       'Nuevo botón % (Ofertas) en el encabezado, como adelanto de una función de ofertas y promociones que vamos a construir próximamente.'
+    ],
+    '2.9.0': [
+      'El botón % (Ofertas) ya no es un adelanto: ahora muestra los descuentos bancarios vigentes hoy (Provincia, ICBC, Galicia y Carrefour) con banco, cadena, tope de reintegro y medio de pago, actualizados todos los días.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2685,9 +2723,101 @@
     if (e.target.id === 'settingsOverlay') document.getElementById('settingsOverlay').classList.remove('show');
   });
 
-  // ---- Ofertas (próximamente) ----
+  // ---- Ofertas: descuentos bancarios vigentes hoy ----
+  // Fase 3 del sistema de % Ofertas: solo promos bancarias filtradas por
+  // día de la semana y vigencia (no cruza con precios de productos, ver
+  // memoria del proyecto). Lectura directa con la anon key -- promos_bancarias
+  // es de lectura pública (RLS), no depende de que el usuario esté logueado
+  // ni de window.Sync.
+  const DIAS_JS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+  let sbOfertas = null;
+
+  function ofertasConfigurado() {
+    const c = window.SUPABASE_CONFIG;
+    return !!(c && c.url && c.anonKey && !c.url.includes('TU-PROYECTO'));
+  }
+
+  function humanizarTexto(s) {
+    return (s || '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (ch) => ch.toUpperCase())
+      .replace(/\bDni\b/, 'DNI');
+  }
+
+  function humanizarMedioPago(s) {
+    if (!s) return 'Medio de pago no informado';
+    return s.split(',').filter(Boolean).map(humanizarTexto).join(', ');
+  }
+
+  function formatearTope(monto) {
+    return '$' + Math.round(monto).toLocaleString('es-AR');
+  }
+
+  function renderOfertas(promos, diaHoy) {
+    const subtitle = document.getElementById('ofertasSubtitle');
+    const list = document.getElementById('ofertasList');
+
+    if (promos.length === 0) {
+      subtitle.textContent = 'No encontramos descuentos bancarios activos para hoy.';
+      list.innerHTML = '';
+      return;
+    }
+
+    subtitle.textContent = `Descuentos bancarios activos hoy (${humanizarTexto(diaHoy)})`;
+    list.innerHTML = promos.map((p) => {
+      const cadena = p.supermercado && p.supermercado !== 'sin_dato' ? ` · ${humanizarTexto(p.supermercado)}` : '';
+      const tope = p.tope_reintegro ? `<div class="oferta-linea2">Tope: ${formatearTope(p.tope_reintegro)}</div>` : '';
+      return `
+        <div class="oferta-card">
+          <div class="oferta-pct">${p.descuento_pct}%</div>
+          <div class="oferta-info">
+            <div class="oferta-linea1">${humanizarTexto(p.fuente)}${cadena}</div>
+            <div class="oferta-linea2">${humanizarMedioPago(p.medio_pago)}</div>
+            ${tope}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function cargarOfertas() {
+    const subtitle = document.getElementById('ofertasSubtitle');
+    const list = document.getElementById('ofertasList');
+    list.innerHTML = '';
+
+    if (!ofertasConfigurado()) {
+      subtitle.textContent = 'Todavía no configuramos esto -- volvé a intentar más tarde.';
+      return;
+    }
+
+    subtitle.textContent = 'Buscando descuentos bancarios de hoy...';
+    try {
+      if (!sbOfertas) {
+        sbOfertas = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+      }
+      const { data, error } = await sbOfertas.from('promos_bancarias').select('*');
+      if (error) throw error;
+
+      const hoyIso = new Date().toISOString().slice(0, 10);
+      const diaHoy = DIAS_JS[new Date().getDay()];
+      const vigentes = (data || []).filter((p) => {
+        const enDia = Array.isArray(p.dias_semana) && p.dias_semana.includes(diaHoy);
+        const desdeOk = !p.vigencia_desde || p.vigencia_desde <= hoyIso;
+        const hastaOk = !p.vigencia_hasta || p.vigencia_hasta >= hoyIso;
+        return enDia && desdeOk && hastaOk;
+      });
+      vigentes.sort((a, b) => (b.descuento_pct || 0) - (a.descuento_pct || 0));
+
+      renderOfertas(vigentes, diaHoy);
+    } catch (err) {
+      console.error('[Ofertas]', err);
+      subtitle.textContent = 'No pudimos cargar las ofertas ahora. Probá de nuevo más tarde.';
+    }
+  }
+
   document.getElementById('ofertasBtn').addEventListener('click', () => {
     document.getElementById('ofertasOverlay').classList.add('show');
+    cargarOfertas();
   });
   document.getElementById('ofertasCloseBtn').addEventListener('click', () => {
     document.getElementById('ofertasOverlay').classList.remove('show');
