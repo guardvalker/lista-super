@@ -2,10 +2,9 @@
 individuales: si uno se rompe (cambió el HTML, la página no responde),
 se loguea y se sigue con los demás -- no debe tumbar todo el pipeline.
 
-Fase 2: Provincia, ICBC y Carrefour. Mercado Pago quedó descartado (no
-tiene página pública de descuentos de super, ver memoria del proyecto).
-Galicia queda pendiente -- tiene API real pero falta el endpoint exacto
-de la categoría Supermercados.
+Fase 2 completa: Provincia, ICBC, Carrefour y Galicia. Mercado Pago quedó
+descartado (no tiene página pública de descuentos de super, ver memoria
+del proyecto).
 """
 
 import os
@@ -17,6 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "common"))
 from supabase_client import get_client  # noqa: E402
 
 import carrefour  # noqa: E402
+import galicia  # noqa: E402
 import icbc  # noqa: E402
 import provincia  # noqa: E402
 
@@ -24,7 +24,7 @@ SCRAPERS = [
     provincia,
     icbc,
     carrefour,
-    # galicia -- pendiente, falta el endpoint de la categoría Supermercados
+    galicia,
 ]
 
 
