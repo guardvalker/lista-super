@@ -452,6 +452,11 @@
     border-radius: 20px;
     vertical-align: middle;
   }
+  .item-price-line {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
   .qty-btn {
     background: none;
     border: none;
@@ -1224,6 +1229,10 @@
     <div class="modal-title">% Ofertas</div>
     <div class="modal-subtitle" id="ofertasSubtitle">Buscando descuentos bancarios de hoy...</div>
     <div class="ofertas-list" id="ofertasList"></div>
+    <button class="toggle-btn" id="precioPromedioToggleBtn" type="button">
+      <span id="precioPromedioIcon">📊</span> <span id="precioPromedioLabel">Mostrar precio promedio en la lista</span>
+    </button>
+    <div class="modal-subtitle" style="margin-top:6px;margin-bottom:0;">Precio de referencia de Precios Claros. Solo para almacén, lácteos, bebidas, limpieza, panadería y similares -- no confiable para frescos (frutas, verduras, carnes, pescado), así que ahí no se muestra.</div>
     <button class="modal-save-btn" id="ofertasCloseBtn" type="button">Entendido</button>
   </div>
 </div>
@@ -1409,6 +1418,7 @@
 (function() {
   const STORAGE_KEY = 'lista_super_items';
   const SHOW_CHECKED_KEY = 'lista_super_show_checked';
+  const SHOW_PRECIO_PROMEDIO_KEY = 'lista_super_show_precio_promedio';
   const COLLAPSED_KEY = 'lista_super_collapsed';
   const THEME_KEY = 'lista_super_theme';
   const KNOWN_INGREDIENTS_KEY = 'lista_super_known_ingredients';
@@ -1433,7 +1443,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.9.1';
+  const APP_VERSION = '2.10.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1564,6 +1574,9 @@
     ],
     '2.9.1': [
       'Arreglamos las mayúsculas de los medios de pago con acento en % Ofertas (ej: aparecía "DéBito" en vez de "Débito").'
+    ],
+    '2.10.0': [
+      'Nuevo botón "Mostrar precio promedio en la lista" dentro de % Ofertas: cuando está activado, cada ingrediente de almacén/lácteos/bebidas/limpieza/panadería muestra abajo un precio de referencia (mediana de Precios Claros) para saber si lo estás pagando caro o barato. No aparece en frutas, verduras, carnes ni pescado porque esos productos frescos no tienen buen dato en esa fuente.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1775,6 +1788,7 @@
   let items = [];
   let showChecked = true;
   let collapsed = {};
+  let mostrarPrecioPromedio = false;
   let pendingText = null; // texto esperando que el usuario elija categoría
   let categoryModalTarget = 'list'; // 'list' (lista principal) | 'ingredient' (editor de receta)
   let editingId = null; // id del item que se está editando
@@ -2055,6 +2069,7 @@
     } catch (e) { items = []; }
     const showRaw = localStorage.getItem(SHOW_CHECKED_KEY);
     showChecked = showRaw === null ? true : showRaw === 'true';
+    mostrarPrecioPromedio = localStorage.getItem(SHOW_PRECIO_PROMEDIO_KEY) === 'true';
     try {
       const colRaw = localStorage.getItem(COLLAPSED_KEY);
       collapsed = colRaw ? JSON.parse(colRaw) : {};
@@ -2240,6 +2255,13 @@
           qtyBadge.className = 'item-qty';
           qtyBadge.textContent = item.qty;
           text.appendChild(qtyBadge);
+        }
+        const precioRef = precioPromedioParaItem(item);
+        if (precioRef != null) {
+          const precioLine = document.createElement('div');
+          precioLine.className = 'item-price-line';
+          precioLine.textContent = `~$${Math.round(precioRef).toLocaleString('es-AR')} prom.`;
+          text.appendChild(precioLine);
         }
 
         const qtyBtn = document.createElement('button');
@@ -2833,6 +2855,83 @@
   });
   document.getElementById('ofertasOverlay').addEventListener('click', (e) => {
     if (e.target.id === 'ofertasOverlay') document.getElementById('ofertasOverlay').classList.remove('show');
+  });
+
+  // ---- Precio promedio de referencia bajo cada ingrediente ----
+  // Cruza los items de la lista contra precios_termino (mediana de
+  // Precios Claros por término de búsqueda, ver fetch_precios.py). Se
+  // resuelve al mismo término que ya usa detectCategory() para categorizar
+  // el item (PRODUCT_MAP/PRODUCTOS_INTERES comparten exactamente el mismo
+  // vocabulario), pero sin pasar por el override de knownIngredients: acá
+  // nos interesa qué término real de Precios Claros matchea, no qué
+  // categoría eligió el usuario.
+  //
+  // Categorías excluidas a propósito (probado en vivo, 2026-08-24): Precios
+  // Claros es un catálogo por código de barras, así que frutas/verduras/
+  // carnes/pescado frescos casi no tienen EAN -- buscar "pollo" devuelve
+  // sopa instantánea y alimento para gatos, "manzana" devuelve shampoo. El
+  // número solo se muestra para categorías de productos empaquetados, donde
+  // sí representa el producto real.
+  const CATEGORIAS_SIN_PRECIO_REF = new Set(['frutas_verduras', 'carnes', 'pescados']);
+  const PRODUCT_MAP_KEYS_DESC = Object.keys(PRODUCT_MAP).sort((a, b) => b.length - a.length);
+  let preciosTerminoHoy = null; // Map<termino, precio_promedio> | null = todavía no cargado
+
+  function resolverTerminoPrecio(rawText) {
+    const text = normalize(rawText);
+    if (PRODUCT_MAP[text]) return text;
+    for (const key of PRODUCT_MAP_KEYS_DESC) {
+      if (text.includes(key)) return key;
+    }
+    for (const w of text.split(/\s+/)) {
+      if (PRODUCT_MAP[w]) return w;
+    }
+    return null;
+  }
+
+  function precioPromedioParaItem(item) {
+    if (!mostrarPrecioPromedio || !preciosTerminoHoy) return null;
+    if (item.category && CATEGORIAS_SIN_PRECIO_REF.has(item.category)) return null;
+    const termino = resolverTerminoPrecio(item.text);
+    if (!termino || CATEGORIAS_SIN_PRECIO_REF.has(PRODUCT_MAP[termino])) return null;
+    return preciosTerminoHoy.get(termino) ?? null;
+  }
+
+  async function cargarPreciosTermino() {
+    if (!ofertasConfigurado()) return;
+    try {
+      if (!sbOfertas) {
+        sbOfertas = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+      }
+      const hoyIso = new Date().toISOString().slice(0, 10);
+      const { data, error } = await sbOfertas
+        .from('precios_termino')
+        .select('termino, precio_promedio')
+        .eq('fecha', hoyIso);
+      if (error) throw error;
+      preciosTerminoHoy = new Map((data || []).map((r) => [r.termino, r.precio_promedio]));
+    } catch (err) {
+      console.error('[PrecioPromedio]', err);
+      preciosTerminoHoy = new Map();
+    }
+    render();
+  }
+
+  function actualizarPrecioPromedioBtn() {
+    document.getElementById('precioPromedioLabel').textContent = mostrarPrecioPromedio
+      ? 'Ocultar precio promedio en la lista'
+      : 'Mostrar precio promedio en la lista';
+    document.getElementById('precioPromedioToggleBtn').classList.toggle('active', mostrarPrecioPromedio);
+  }
+
+  document.getElementById('precioPromedioToggleBtn').addEventListener('click', () => {
+    mostrarPrecioPromedio = !mostrarPrecioPromedio;
+    localStorage.setItem(SHOW_PRECIO_PROMEDIO_KEY, String(mostrarPrecioPromedio));
+    actualizarPrecioPromedioBtn();
+    if (mostrarPrecioPromedio && !preciosTerminoHoy) {
+      cargarPreciosTermino();
+    } else {
+      render();
+    }
   });
 
   document.getElementById('accountSendLinkBtn').addEventListener('click', async () => {
@@ -4191,6 +4290,8 @@
   loadKnownIngredients();
   backfillKnownIngredientsFromCurrentData();
   render();
+  actualizarPrecioPromedioBtn();
+  if (mostrarPrecioPromedio) cargarPreciosTermino();
   checkForUpdate();
   initSync();
 })();

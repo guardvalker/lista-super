@@ -83,6 +83,7 @@ def main():
     hoy = datetime.date.today().isoformat()
     productos_rows = []
     precios_rows = []
+    precios_termino_rows = []
     vistos = set()
 
     for i, termino in enumerate(PRODUCTOS_INTERES):
@@ -91,6 +92,30 @@ def main():
         except requests.RequestException as e:
             print(f"  [error] '{termino}': {e}")
             continue
+
+        # Precio de referencia del término (mediana de precio_min entre TODOS
+        # los resultados de esta búsqueda, no solo los que quedan después del
+        # dedup global por EAN de más abajo -- acá nos importa "qué precios
+        # trae buscar este término hoy", sin importar si ese producto ya
+        # apareció buscando otro término antes). Mediana en vez de promedio
+        # para no dejar que un outlier de presentación (ej. un pack x6 entre
+        # unidades sueltas) tironee mucho el número.
+        precios_validos = sorted(p.get("precioMin") for p in resultados if p.get("precioMin") is not None)
+        if precios_validos:
+            n = len(precios_validos)
+            mediana = (
+                precios_validos[n // 2]
+                if n % 2 == 1
+                else (precios_validos[n // 2 - 1] + precios_validos[n // 2]) / 2
+            )
+            precios_termino_rows.append(
+                {
+                    "termino": termino,
+                    "fecha": hoy,
+                    "precio_promedio": mediana,
+                    "cant_productos": n,
+                }
+            )
 
         for p in resultados:
             pid = p.get("id")
@@ -126,7 +151,9 @@ def main():
 
     client.table("productos").upsert(productos_rows, on_conflict="id").execute()
     client.table("precios").upsert(precios_rows, on_conflict="producto_id,fecha").execute()
-    print("Listo.")
+    if precios_termino_rows:
+        client.table("precios_termino").upsert(precios_termino_rows, on_conflict="termino,fecha").execute()
+    print(f"Listo. {len(precios_termino_rows)} términos con precio de referencia.")
 
 
 if __name__ == "__main__":

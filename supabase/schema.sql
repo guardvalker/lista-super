@@ -396,21 +396,41 @@ create table if not exists promos_bancarias (
   unique (fuente, supermercado, descuento_pct, dias_semana, medio_pago)
 );
 
+-- Precio de referencia por término de búsqueda (no por EAN puntual): la
+-- mediana de precio_min entre todos los productos que matchean ese término
+-- en Precios Claros ese día. Alimenta el "¿esto es caro o barato?" en la
+-- lista -- el término es el mismo texto que usa PRODUCT_MAP en index.html
+-- (y que copia scrapers/common/productos_interes.py), así que un item de
+-- la lista se resuelve al mismo término sin tabla de mapeo aparte.
+create table if not exists precios_termino (
+  id bigserial primary key,
+  termino text not null,
+  fecha date not null,
+  precio_promedio numeric not null,
+  cant_productos integer,
+  created_at timestamptz not null default now(),
+  unique (termino, fecha)
+);
+
 create index if not exists precios_producto_idx on precios (producto_id, fecha desc);
 create index if not exists promos_bancarias_vigencia_idx on promos_bancarias (vigencia_desde, vigencia_hasta);
 create index if not exists promos_bancarias_super_idx on promos_bancarias (supermercado);
+create index if not exists precios_termino_idx on precios_termino (termino, fecha desc);
 
 alter table sucursales enable row level security;
 alter table productos enable row level security;
 alter table precios enable row level security;
 alter table promos_bancarias enable row level security;
+alter table precios_termino enable row level security;
 
 grant select on sucursales to anon, authenticated;
 grant select on productos to anon, authenticated;
 grant select on precios to anon, authenticated;
 grant select on promos_bancarias to anon, authenticated;
+grant select on precios_termino to anon, authenticated;
 
 create policy "sucursales_select" on sucursales for select using (true);
 create policy "productos_select" on productos for select using (true);
 create policy "precios_select" on precios for select using (true);
 create policy "promos_bancarias_select" on promos_bancarias for select using (true);
+create policy "precios_termino_select" on precios_termino for select using (true);
