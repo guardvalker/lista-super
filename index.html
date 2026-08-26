@@ -124,10 +124,14 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+    padding: 0 0 env(safe-area-inset-bottom) 0;
   }
   header {
-    padding: 20px 16px 12px 16px;
+    /* El padding de safe-area va acá, no en .app: header es sticky, y una
+       vez "pegado" arriba al scrollear se ancla a top:0 del viewport real
+       ignorando el padding-top del ancestro (.app) — solo funcionaba en
+       reposo, antes de scrollear. Mismo patrón ya usado en .screen-header. */
+    padding: calc(20px + env(safe-area-inset-top)) 16px 12px 16px;
     position: sticky;
     top: 0;
     background: linear-gradient(180deg, var(--bg-solid) 82%, transparent 100%);
@@ -1441,7 +1445,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.11.0';
+  const APP_VERSION = '2.11.1';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1579,6 +1583,9 @@
     '2.11.0': [
       'Sacamos los descuentos bancarios (mezclaban comercios chicos con las cadenas grandes y no tenían info de distancia real) -- el botón ahora es directo "Precio de referencia".',
       'El precio de referencia ahora se actualiza cada 2 semanas (antes era diario) y de a poco va a ir cubriendo más ingredientes: cualquier cosa nueva que escribas en la lista y no esté en el diccionario fijo, se suma sola a la próxima corrida.'
+    ],
+    '2.11.1': [
+      'Fix visual en iPhone: al scrollear, la barra de arriba (título + botones) se metía debajo de la hora/wifi/batería en vez de quedar por debajo de esa franja. Ahora respeta ese margen todo el tiempo, no solo antes de scrollear.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
