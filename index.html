@@ -1537,7 +1537,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.12.4';
+  const APP_VERSION = '2.12.5';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1695,6 +1695,9 @@
       'El botón de versión ahora vive dentro de Ajustes.'
     ],
     '2.12.4': [
+      'Ajustes internos.'
+    ],
+    '2.12.5': [
       'Ajustes internos.'
     ]
   };
@@ -2883,13 +2886,29 @@
           const chaosProgress = Math.min((now - introEnd) / (outroStart - introEnd), 1); // 0 -> 1
 
           const spinDeg = elapsed * (60 + chaosProgress * 480);
-          const shakeAmp = 2 + chaosProgress * 26;
-          const shakeX = Math.sin(elapsed * (10 + chaosProgress * 30)) * shakeAmp;
-          const shakeY = Math.cos(elapsed * (13 + chaosProgress * 34)) * shakeAmp;
-          const scalePulse = 1 + Math.sin(elapsed * (4 + chaosProgress * 10)) * (0.02 + chaosProgress * 0.08);
 
-          app.style.transform = `translate(${shakeX}px, ${shakeY}px) rotate(${spinDeg}deg) scale(${scalePulse})`;
-          app.style.filter = `hue-rotate(${(elapsed * (80 + chaosProgress * 400)) % 360}deg) saturate(1.6)`;
+          // Temblor fino, constante.
+          const jitterAmp = 2 + chaosProgress * 18;
+          const jitterX = Math.sin(elapsed * (10 + chaosProgress * 30)) * jitterAmp;
+          const jitterY = Math.cos(elapsed * (13 + chaosProgress * 34)) * jitterAmp;
+
+          // Rebote grande tipo pelota, cada vez más alto y más seguido --
+          // independiente del giro y el temblor, se suma encima.
+          const bounceFreq = 1.4 + chaosProgress * 4.6; // rebotes por segundo
+          const bounceHeight = 6 + chaosProgress * 70; // px
+          const bounceY = -Math.abs(Math.sin(elapsed * bounceFreq * Math.PI)) * bounceHeight;
+
+          // Explosión: pulso percusivo de escala + saturación/brillo, con
+          // decaimiento rápido tipo onda expansiva, cada vez más seguido.
+          const explosionPeriod = Math.max(1.6 - chaosProgress * 1.25, 0.35); // seg. entre explosiones
+          const cyclePos = (elapsed % explosionPeriod) / explosionPeriod;
+          const explosionPulse = Math.pow(Math.max(1 - cyclePos * 3, 0), 2); // pico al inicio del ciclo
+          const scalePunch = 1 + explosionPulse * (0.1 + chaosProgress * 0.4);
+          const extraSaturate = explosionPulse * (1.5 + chaosProgress * 4);
+          const extraBrightness = explosionPulse * (0.15 + chaosProgress * 0.35);
+
+          app.style.transform = `translate(${jitterX}px, ${jitterY + bounceY}px) rotate(${spinDeg}deg) scale(${scalePunch})`;
+          app.style.filter = `hue-rotate(${(elapsed * (80 + chaosProgress * 400)) % 360}deg) saturate(${1.6 + extraSaturate}) brightness(${1 + extraBrightness})`;
 
           if (now >= nextFlashAt) {
             flashEl.style.transition = 'none';
