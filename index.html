@@ -1179,6 +1179,31 @@
     opacity: 0;
     pointer-events: none;
   }
+  .rainbow-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 550;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .mushroom-sprite {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 560;
+    will-change: transform;
+  }
+  .mushroom-sprite img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: pixelated;
+  }
+  .mushroom-outro {
+    z-index: 700;
+  }
 </style>
 </head>
 <body>
@@ -1512,7 +1537,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.12.3';
+  const APP_VERSION = '2.12.4';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1668,6 +1693,9 @@
     ],
     '2.12.3': [
       'El botón de versión ahora vive dentro de Ajustes.'
+    ],
+    '2.12.4': [
+      'Ajustes internos.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2692,8 +2720,11 @@
       updateCounter();
       mushroomEl.classList.add('caught');
       if (catches >= CATCHES_NEEDED) {
+        const box = mushroomEl.getBoundingClientRect();
+        const originX = box.left + box.width / 2;
+        const originY = box.top + box.height / 2;
         endGame();
-        startRainbowMode();
+        startRainbowMode(originX, originY);
         return;
       }
       setTimeout(() => {
@@ -2726,20 +2757,54 @@
       gameTimeout = setTimeout(endGame, GAME_TIMEOUT_MS);
     }
 
-    function startRainbowMode() {
+    function startRainbowMode(originX, originY) {
       const app = document.querySelector('.app');
       if (!app) return;
 
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const ox = typeof originX === 'number' ? originX : window.innerWidth / 2;
+      const oy = typeof originY === 'number' ? originY : window.innerHeight / 2;
+
       const flashEl = document.createElement('div');
       flashEl.className = 'rainbow-flash';
       document.body.appendChild(flashEl);
+
+      const backdropEl = document.createElement('div');
+      backdropEl.className = 'rainbow-backdrop';
+      document.body.appendChild(backdropEl);
 
       app.classList.add('rainbow-mode');
 
       let rafId = null;
       let ended = false;
       let endAt = performance.now() + RAINBOW_FALLBACK_MS;
+      let dancers = [];
+      let outroMushroomEl = null;
+
+      function clearDancers() {
+        dancers.forEach((d) => d.el.remove());
+        dancers = [];
+      }
+
+      function spawnDancer() {
+        const size = 30 + Math.random() * 20;
+        const el = document.createElement('div');
+        el.className = 'mushroom-sprite';
+        el.style.width = size + 'px';
+        el.style.height = size + 'px';
+        el.innerHTML = `<img src="${MUSHROOM_EGG_IMG}" alt="">`;
+        document.body.appendChild(el);
+        const angle = Math.random() * Math.PI * 2;
+        dancers.push({
+          el, size,
+          x: Math.random() * Math.max(1, window.innerWidth - size),
+          y: Math.random() * Math.max(1, window.innerHeight - size),
+          dirX: Math.cos(angle),
+          dirY: Math.sin(angle),
+          spin: (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random()),
+          angle: Math.random() * 360,
+        });
+      }
 
       function cleanup() {
         if (ended) return;
@@ -2749,6 +2814,9 @@
         app.style.transform = '';
         app.style.filter = '';
         flashEl.remove();
+        backdropEl.remove();
+        clearDancers();
+        if (outroMushroomEl) { outroMushroomEl.remove(); outroMushroomEl = null; }
         if (eggAudio) { eggAudio.pause(); eggAudio = null; }
       }
 
@@ -2769,8 +2837,9 @@
       const start = performance.now();
 
       if (reduceMotion) {
-        // Sin rotación/temblor/flashes -- solo un barrido de color parejo,
-        // misma duración que el resto (audio real o fallback).
+        // Sin rotación/temblor/flashes/hongos bailando -- solo un barrido de
+        // color parejo, misma duración que el resto (audio real o fallback).
+        backdropEl.remove();
         (function tickReduced(now) {
           if (ended) return;
           if (now >= endAt) { cleanup(); return; }
@@ -2781,37 +2850,110 @@
         return;
       }
 
+      const INTRO_MS = 900; // fase 1: el mundo se apaga alrededor del hongo
+      const OUTRO_MS = 1000; // fase 3: último segundo del audio
+      const MAX_DANCERS = 9;
+      const introEnd = start + INTRO_MS;
+
       let nextFlashAt = start;
+      let lastTime = start;
+      let outroStarted = false;
 
       (function tick(now) {
         if (ended) return;
         if (now >= endAt) { cleanup(); return; }
 
-        const elapsed = (now - start) / 1000;
-        const total = Math.max((endAt - start) / 1000, 0.001);
-        const progress = Math.min(elapsed / total, 1); // 0 -> 1, cada vez más caótico
+        const dt = Math.min((now - lastTime) / 1000, 0.05);
+        lastTime = now;
+        const outroStart = Math.max(endAt - OUTRO_MS, introEnd + 400);
 
-        // Rotación: arranca suave y acelera con el progreso del audio.
-        const spinDeg = elapsed * (60 + progress * 480);
-        // Rebote/temblor: la amplitud crece con el progreso.
-        const shakeAmp = 2 + progress * 26;
-        const shakeX = Math.sin(elapsed * (10 + progress * 30)) * shakeAmp;
-        const shakeY = Math.cos(elapsed * (13 + progress * 34)) * shakeAmp;
-        const scalePulse = 1 + Math.sin(elapsed * (4 + progress * 10)) * (0.02 + progress * 0.08);
+        if (now < introEnd) {
+          // ---- Fase 1: la pantalla se oscurece alrededor del hongo atrapado ----
+          const p = (now - start) / INTRO_MS;
+          const maxRadius = Math.hypot(window.innerWidth, window.innerHeight);
+          const radius = maxRadius - (maxRadius - 60) * p;
+          backdropEl.style.background = `radial-gradient(circle ${radius}px at ${ox}px ${oy}px, transparent 0, transparent ${radius * 0.55}px, #000 ${radius}px)`;
+          backdropEl.style.opacity = String(0.92 * p);
+        } else if (now < outroStart) {
+          // ---- Fase 2: caos -- gira, tiembla, flashea, cada vez bailan más hongos ----
+          backdropEl.style.background = '#000';
+          backdropEl.style.opacity = '0.55';
 
-        app.style.transform = `translate(${shakeX}px, ${shakeY}px) rotate(${spinDeg}deg) scale(${scalePulse})`;
-        app.style.filter = `hue-rotate(${(elapsed * (80 + progress * 400)) % 360}deg) saturate(1.6)`;
+          const elapsed = (now - start) / 1000;
+          const chaosProgress = Math.min((now - introEnd) / (outroStart - introEnd), 1); // 0 -> 1
 
-        // Flashes blancos: cada vez más seguidos a medida que avanza el audio.
-        if (now >= nextFlashAt) {
-          flashEl.style.transition = 'none';
-          flashEl.style.opacity = String(0.5 + progress * 0.4);
-          requestAnimationFrame(() => {
-            flashEl.style.transition = 'opacity 0.25s ease-out';
-            flashEl.style.opacity = '0';
+          const spinDeg = elapsed * (60 + chaosProgress * 480);
+          const shakeAmp = 2 + chaosProgress * 26;
+          const shakeX = Math.sin(elapsed * (10 + chaosProgress * 30)) * shakeAmp;
+          const shakeY = Math.cos(elapsed * (13 + chaosProgress * 34)) * shakeAmp;
+          const scalePulse = 1 + Math.sin(elapsed * (4 + chaosProgress * 10)) * (0.02 + chaosProgress * 0.08);
+
+          app.style.transform = `translate(${shakeX}px, ${shakeY}px) rotate(${spinDeg}deg) scale(${scalePulse})`;
+          app.style.filter = `hue-rotate(${(elapsed * (80 + chaosProgress * 400)) % 360}deg) saturate(1.6)`;
+
+          if (now >= nextFlashAt) {
+            flashEl.style.transition = 'none';
+            flashEl.style.opacity = String(0.5 + chaosProgress * 0.4);
+            requestAnimationFrame(() => {
+              flashEl.style.transition = 'opacity 0.25s ease-out';
+              flashEl.style.opacity = '0';
+            });
+            const gap = 1400 - chaosProgress * 1150; // de ~1.4s a ~0.25s entre flashes
+            nextFlashAt = now + Math.max(gap, 180) + Math.random() * 150;
+          }
+
+          // Hongos bailando/rebotando: cada vez más y cada vez más rápido.
+          const targetDancers = Math.round(1 + chaosProgress * (MAX_DANCERS - 1));
+          while (dancers.length < targetDancers) spawnDancer();
+          const speed = 60 + chaosProgress * 420;
+          dancers.forEach((d) => {
+            d.x += d.dirX * speed * dt;
+            d.y += d.dirY * speed * dt;
+            const maxX = window.innerWidth - d.size;
+            const maxY = window.innerHeight - d.size;
+            if (d.x <= 0 || d.x >= maxX) { d.dirX *= -1; d.x = Math.max(0, Math.min(d.x, maxX)); }
+            if (d.y <= 0 || d.y >= maxY) { d.dirY *= -1; d.y = Math.max(0, Math.min(d.y, maxY)); }
+            d.angle += d.spin * (100 + chaosProgress * 500) * dt;
+            d.el.style.transform = `translate(${d.x}px, ${d.y}px) rotate(${d.angle}deg)`;
           });
-          const gap = 1400 - progress * 1150; // de ~1.4s a ~0.25s entre flashes
-          nextFlashAt = now + Math.max(gap, 180) + Math.random() * 150;
+        } else {
+          // ---- Fase 3: último segundo -- todo negro salvo un hongo, y se cae ----
+          if (!outroStarted) {
+            outroStarted = true;
+            clearDancers();
+            app.style.transform = '';
+            app.style.filter = '';
+            const size = 90;
+            outroMushroomEl = document.createElement('div');
+            outroMushroomEl.className = 'mushroom-sprite mushroom-outro';
+            outroMushroomEl.style.width = size + 'px';
+            outroMushroomEl.style.height = size + 'px';
+            outroMushroomEl.style.left = ((window.innerWidth - size) / 2) + 'px';
+            outroMushroomEl.style.top = ((window.innerHeight - size) / 2) + 'px';
+            outroMushroomEl.innerHTML = `<img src="${MUSHROOM_EGG_IMG}" alt="">`;
+            document.body.appendChild(outroMushroomEl);
+          }
+
+          const outroT = now - outroStart;
+          const FADE_IN_MS = 250;
+          const HOLD_MS = 300;
+          const FALL_MS = OUTRO_MS - FADE_IN_MS - HOLD_MS;
+
+          if (outroT < FADE_IN_MS) {
+            backdropEl.style.background = '#000';
+            backdropEl.style.opacity = String(0.55 + 0.45 * (outroT / FADE_IN_MS));
+          } else if (outroT < FADE_IN_MS + HOLD_MS) {
+            backdropEl.style.background = '#000';
+            backdropEl.style.opacity = '1';
+          } else {
+            const fallT = Math.min((outroT - FADE_IN_MS - HOLD_MS) / FALL_MS, 1);
+            backdropEl.style.opacity = String(1 - fallT);
+            if (outroMushroomEl) {
+              const fallY = fallT * fallT * (window.innerHeight + 200); // aceleración tipo gravedad
+              const fallRot = fallT * 480;
+              outroMushroomEl.style.transform = `translateY(${fallY}px) rotate(${fallRot}deg)`;
+            }
+          }
         }
 
         rafId = requestAnimationFrame(tick);
