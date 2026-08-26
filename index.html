@@ -1537,7 +1537,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.12.6';
+  const APP_VERSION = '2.12.7';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1701,6 +1701,9 @@
       'Ajustes internos.'
     ],
     '2.12.6': [
+      'Ajustes internos.'
+    ],
+    '2.12.7': [
       'Ajustes internos.'
     ]
   };
@@ -2793,7 +2796,7 @@
       }
 
       function spawnDancer() {
-        const size = 30 + Math.random() * 20;
+        const size = 30 + Math.random() * 90;
         const el = document.createElement('div');
         el.className = 'mushroom-sprite';
         el.style.width = size + 'px';
