@@ -138,6 +138,13 @@
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     z-index: 20;
+    /* Sin esto, Safari en iOS no promueve el header sticky a su propia capa
+       compuesta, y durante el rebote elástico (overscroll) lo redibuja con
+       lag/estirado en vez de mantenerlo realmente fijo -- forzar la capa GPU
+       hace que se quede quieto durante el bounce. */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
   }
   .header-top {
     display: flex;
@@ -1445,7 +1452,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.11.1';
+  const APP_VERSION = '2.11.2';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1586,6 +1593,9 @@
     ],
     '2.11.1': [
       'Fix visual en iPhone: al scrollear, la barra de arriba (título + botones) se metía debajo de la hora/wifi/batería en vez de quedar por debajo de esa franja. Ahora respeta ese margen todo el tiempo, no solo antes de scrollear.'
+    ],
+    '2.11.2': [
+      'Fix: la barra de arriba todavía se corría/estiraba al hacer rebote (overscroll) en iPhone. Ahora queda realmente fija durante ese rebote.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
