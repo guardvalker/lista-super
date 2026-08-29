@@ -1537,7 +1537,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.12.7';
+  const APP_VERSION = '2.12.8';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1705,6 +1705,9 @@
     ],
     '2.12.7': [
       'Ajustes internos.'
+    ],
+    '2.12.8': [
+      'Arreglamos que a veces la app te desconectara la sesión sola, sin haber cerrado sesión vos: dos partes internas competían por renovar el mismo inicio de sesión y una terminaba invalidando a la otra.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -3283,7 +3286,19 @@
     if (!ofertasConfigurado()) return;
     try {
       if (!sbOfertas) {
-        sbOfertas = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+        // auth deshabilitada a propósito: esta consulta es de solo lectura
+        // pública (RLS `using (true)`, no depende de sesión) y este cliente
+        // NO debe tocar el localStorage de auth compartido con window.Sync.
+        // Antes, al tener persistSession/autoRefreshToken en default (true),
+        // dos GoTrueClient distintos competían por refrescar el mismo
+        // refresh token cada ~1h; bajo rotación de tokens, el que perdía la
+        // carrera invalidaba su copia y pisaba la sesión válida del otro en
+        // el storage compartido — eso es lo que causaba los deslogueos
+        // random reportados (pasaba en cuanto alguien abría "% Ofertas" en
+        // la misma sesión que estaba logueado).
+        sbOfertas = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
       }
       const hoyIso = new Date().toISOString().slice(0, 10);
       const { data, error } = await sbOfertas
