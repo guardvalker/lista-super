@@ -536,6 +536,43 @@
     box-shadow: 0 4px 16px rgba(0,0,0,0.3);
   }
 
+  /* Pull-to-refresh: indicador circular que se arma a medida que se
+     arrastra hacia abajo desde el tope de la pantalla. No usamos el
+     pull-to-refresh nativo del navegador (recarga la página entera,
+     perdés el scroll y hay un flash blanco) — este solo dispara
+     window.Sync.pullNow(), mucho más liviano y rápido. */
+  .pull-refresh {
+    position: fixed;
+    top: calc(4px + env(safe-area-inset-top));
+    left: 50%;
+    width: 36px;
+    height: 36px;
+    margin-left: -18px;
+    border-radius: 50%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    z-index: 30;
+    opacity: 0;
+    transform: translateY(-46px);
+    pointer-events: none;
+  }
+  .pull-refresh svg {
+    width: 17px;
+    height: 17px;
+    color: var(--accent);
+    transform: rotate(calc(var(--pull-progress, 0) * 220deg));
+  }
+  .pull-refresh.spinning svg {
+    animation: pull-refresh-spin 0.7s linear infinite;
+  }
+  @keyframes pull-refresh-spin {
+    to { transform: rotate(360deg); }
+  }
+
   /* Category picker modal (for unrecognized items) */
   .modal-overlay {
     position: fixed;
@@ -1246,6 +1283,8 @@
 
 <div class="sync-banner" id="syncBanner" style="display:none;"></div>
 
+<div class="pull-refresh" id="pullRefresh"></div>
+
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <div class="modal-title" id="modalTitle">¿En qué categoría va?</div>
@@ -1534,10 +1573,11 @@
     scale: `<svg ${ICON_SVG_ATTRS}><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-2.5 5a3 3 0 0 0 6 0z"/><path d="M19 7l-2.5 5a3 3 0 0 0 6 0z"/><path d="M8 21h8"/></svg>`,
     percent: `<svg ${ICON_SVG_ATTRS}><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>`,
     gear: `<svg ${ICON_SVG_ATTRS}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82A1.65 1.65 0 0 0 3 13.09H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+    refresh: `<svg ${ICON_SVG_ATTRS}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.12.8';
+  const APP_VERSION = '2.13.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1708,6 +1748,9 @@
     ],
     '2.12.8': [
       'Arreglamos que a veces la app te desconectara la sesión sola, sin haber cerrado sesión vos: dos partes internas competían por renovar el mismo inicio de sesión y una terminaba invalidando a la otra.'
+    ],
+    '2.13.0': [
+      'Nuevo: arrastrá la pantalla hacia abajo desde arriba de todo para forzar una sincronización al instante, sin esperar a que llegue sola (solo si estás logueado y tenés una lista vinculada).'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1742,6 +1785,7 @@
     document.getElementById('ingredientesBackBtn').innerHTML = ICONS.back;
     document.getElementById('versionSettingsIcon').innerHTML = ICONS.note;
     document.getElementById('versionSettingsValue').textContent = APP_VERSION;
+    document.getElementById('pullRefresh').innerHTML = ICONS.refresh;
   }
 
   document.getElementById('themeToggle').addEventListener('click', () => {
@@ -4680,6 +4724,84 @@
     });
   }
 
+  // ---- Pull-to-refresh (arrastrar hacia abajo desde el tope para forzar
+  // un re-sync) ----
+  // No usamos el pull-to-refresh nativo del navegador (recarga toda la
+  // página — flash blanco, pierde el scroll y cualquier input sin guardar)
+  // ni tocamos scroll/preventDefault en absoluto: solo miramos el dedo
+  // mientras `overscroll-behavior-y: contain` (ya seteado en html/body)
+  // impide el rebote nativo, y dibujamos nuestro propio indicador encima.
+  // Sin sesión o sin lista vinculada no hay nada que sincronizar, así que
+  // el gesto queda inerte (canPull() da false, no aparece ningún ícono).
+  function setupPullToRefresh() {
+    const el = document.getElementById('pullRefresh');
+    const THRESHOLD = 68; // px de arrastre para considerarlo "listo"
+    const MAX_DRAG = 100;
+    let startY = null;
+    let dragging = false;
+    let refreshing = false;
+
+    function canPull() {
+      return !refreshing && window.scrollY <= 0 &&
+        window.Sync && window.Sync.isConfigured() &&
+        window.Sync.getUser() && window.Sync.getListaId();
+    }
+
+    function setProgress(p) {
+      el.style.setProperty('--pull-progress', p);
+      el.style.opacity = String(Math.min(p * 1.4, 1));
+      el.style.transform = `translateY(${-46 + Math.min(p, 1) * 62}px)`;
+    }
+
+    function reset() {
+      el.style.transition = 'transform .2s ease, opacity .2s ease';
+      setProgress(0);
+      dragging = false;
+      startY = null;
+      setTimeout(() => { el.style.transition = ''; }, 220);
+    }
+
+    function doRefresh() {
+      refreshing = true;
+      dragging = false;
+      startY = null;
+      el.style.transition = 'transform .15s ease, opacity .15s ease';
+      setProgress(1);
+      el.classList.add('spinning');
+      window.Sync.pullNow().then(() => {
+        setTimeout(() => {
+          el.classList.remove('spinning');
+          el.style.transition = 'transform .2s ease, opacity .2s ease';
+          setProgress(0);
+          refreshing = false;
+        }, 350);
+      });
+    }
+
+    document.addEventListener('touchstart', (ev) => {
+      if (ev.touches.length !== 1 || !canPull()) { startY = null; return; }
+      startY = ev.touches[0].clientY;
+      dragging = true;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (ev) => {
+      if (!dragging || startY === null || refreshing) return;
+      if (window.scrollY > 0) { reset(); return; }
+      const dy = ev.touches[0].clientY - startY;
+      if (dy <= 0) { setProgress(0); return; }
+      el.style.transition = 'none';
+      setProgress(Math.min(dy, MAX_DRAG) / THRESHOLD);
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+      if (!dragging) return;
+      const progress = parseFloat(el.style.getPropertyValue('--pull-progress')) || 0;
+      if (progress >= 1 && !refreshing) doRefresh();
+      else reset();
+    });
+    document.addEventListener('touchcancel', () => { if (dragging) reset(); });
+  }
+
   // Init
   applyTheme();
   applyStaticIcons();
@@ -4692,6 +4814,7 @@
   if (mostrarPrecioPromedio) cargarPreciosTermino();
   checkForUpdate();
   initSync();
+  setupPullToRefresh();
 })();
 
 // Registro del Service Worker (habilita funcionamiento offline)
