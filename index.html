@@ -1598,7 +1598,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.14.0';
+  const APP_VERSION = '2.14.1';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1776,6 +1776,9 @@
     '2.14.0': [
       'Nuevo botón "📖 Pre-recetas" (en Recetas, arriba a la derecha): elegí entre ~1800 recetas de paulinacocina.net y sumalas a Mis Recetas con un toque, ya con los ingredientes categorizados. Traen un link a "Ver receta original" para la preparación.',
       'Las pre-recetas agregadas se ven con un fondo distinto en el listado para diferenciarlas de las que creaste vos. Si editás una, pasa a contar como receta propia (cambia de color) sin borrar la original del catálogo.'
+    ],
+    '2.14.1': [
+      'Arreglamos que el link "Ver receta original" de una pre-receta se perdiera al sincronizar (hacía falta actualizar también una función del lado de Supabase, además de la tabla).'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
