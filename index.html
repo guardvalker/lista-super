@@ -1110,6 +1110,9 @@
   }
   .recipe-row-name { font-size: 14.5px; font-weight: 600; }
   .recipe-row-count { font-size: 11.5px; color: var(--text-dim); }
+  /* pre-receta agregada desde el catálogo de paulinacocina.net: fondo
+     distinto para no confundirla con una receta propia a simple vista */
+  .recipe-row-pre { background: var(--accent-dim); border-color: transparent; }
 
   /* fila de ingrediente dentro del catálogo (pantalla "Ingredientes") */
   .ing-row-icon { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
@@ -1462,7 +1465,7 @@
     <div class="screen-header">
       <button class="theme-toggle" id="recetasBackBtn" type="button" aria-label="Volver"></button>
       <div class="screen-title">Recetas</div>
-      <div class="screen-header-spacer"></div>
+      <button class="toggle-btn" id="preRecetasBtn" type="button">📖 Pre-recetas</button>
     </div>
     <div class="picker-actions recetas-toolbar">
       <button class="toggle-btn" id="recetasExportBtn" type="button">⬆️ Exportar</button>
@@ -1471,6 +1474,23 @@
     <div class="recetas-body-row">
       <div class="recetas-list" id="recetasList"></div>
       <div class="alpha-index" id="alphaIndex"></div>
+    </div>
+  </div>
+</div>
+
+<div class="screen-overlay" id="preRecetasOverlay">
+  <div class="screen">
+    <div class="screen-header">
+      <button class="theme-toggle" id="preRecetasBackBtn" type="button" aria-label="Volver"></button>
+      <div class="screen-title">Pre-recetas</div>
+      <div class="screen-header-spacer"></div>
+    </div>
+    <div class="ingredientes-search-row">
+      <input type="text" id="preRecetasSearchInput" class="text-input" placeholder="Buscar receta..." autocomplete="off" autocorrect="off">
+    </div>
+    <div class="recetas-body-row">
+      <div class="recetas-list" id="preRecetasList"></div>
+      <div class="alpha-index" id="preRecetasAlphaIndex"></div>
     </div>
   </div>
 </div>
@@ -1500,6 +1520,7 @@
       <button class="theme-toggle" id="recipeDetailEditBtn" type="button" aria-label="Editar receta"></button>
     </div>
     <div class="screen-body" id="recipeDetailBody">
+      <div id="recipeDetailSourceLink" hidden></div>
       <div class="modal-subtitle">Ingredientes <span class="subtitle-hint">(tocá para elegir, podés elegir varios)</span></div>
       <div id="recipeDetailIngredients" class="ingredient-grid"></div>
       <button class="modal-save-btn" id="buildStepBtn" type="button" disabled>Armar paso con ingredientes elegidos</button>
@@ -1577,7 +1598,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.13.0';
+  const APP_VERSION = '2.14.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1751,6 +1772,10 @@
     ],
     '2.13.0': [
       'Nuevo: arrastrá la pantalla hacia abajo desde arriba de todo para forzar una sincronización al instante, sin esperar a que llegue sola (solo si estás logueado y tenés una lista vinculada).'
+    ],
+    '2.14.0': [
+      'Nuevo botón "📖 Pre-recetas" (en Recetas, arriba a la derecha): elegí entre ~1800 recetas de paulinacocina.net y sumalas a Mis Recetas con un toque, ya con los ingredientes categorizados. Traen un link a "Ver receta original" para la preparación.',
+      'Las pre-recetas agregadas se ven con un fondo distinto en el listado para diferenciarlas de las que creaste vos. Si editás una, pasa a contar como receta propia (cambia de color) sin borrar la original del catálogo.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2212,6 +2237,12 @@
   let editingRecipeIngredients = []; // ingredientes de la receta que se está editando
   let editingRecipeSubIds = []; // ids de subrecetas de la receta que se está editando
   let editingRecipeContext = 'menu'; // 'menu' | 'receta' — desde dónde se abrió el editor, cambia el texto
+
+  // ---- Pre-recetas: catálogo estático (assets/pre-recetas.json), no es
+  // dato del usuario — no va a localStorage ni se sincroniza por Supabase.
+  // [{ id, name, url, ingredients: [{id, text, category}] }]
+  let preRecetas = null; // null = todavía no se cargó
+  let preRecetasFilter = '';
 
   // ---- Pantalla Recetas: detalle con instrucciones de cocina ----
   const PROCESS_ACTIONS = [
@@ -3896,7 +3927,7 @@
       <div class="recipe-letter-heading" id="recetas-letter-${letter}">${letter}</div>
       ${groups.get(letter).map((r) => {
         const count = getEffectiveIngredients(r).length;
-        return `<div class="recipe-row" data-action="open-recipe-detail" data-recipe-id="${r.id}">
+        return `<div class="recipe-row${r.sourceId ? ' recipe-row-pre' : ''}" data-action="open-recipe-detail" data-recipe-id="${r.id}">
           <div class="recipe-row-body" data-action="open-recipe-detail" data-recipe-id="${r.id}">
             <span class="recipe-row-name">${escapeHtml(r.name)}</span>
             <span class="recipe-row-count">${count} ingrediente${count !== 1 ? 's' : ''}</span>
@@ -3914,6 +3945,102 @@
     indexEl.innerHTML = [...ALPHABET, ...extraLetters].map((letter) => {
       const has = groups.has(letter);
       return `<button type="button" class="alpha-index-letter${has ? '' : ' is-empty'}" data-action="jump-to-letter" data-letter="${letter}"${has ? '' : ' disabled'}>${letter}</button>`;
+    }).join('');
+  }
+
+  // ---- Pre-recetas: catálogo de paulinacocina.net, agregar/quitar de "Mis
+  // Recetas". No trae pasos de preparación, solo ingredientes + link a la
+  // receta original (ver assets/pre-recetas.json / scrapers/recetas). ----
+  async function loadPreRecetas() {
+    if (preRecetas) return preRecetas;
+    try {
+      const res = await fetch('assets/pre-recetas.json');
+      preRecetas = await res.json();
+    } catch (e) {
+      preRecetas = [];
+    }
+    return preRecetas;
+  }
+
+  async function openPreRecetas() {
+    preRecetasFilter = '';
+    document.getElementById('preRecetasSearchInput').value = '';
+    document.getElementById('preRecetasList').innerHTML = '<div class="recetas-empty">Cargando recetario…</div>';
+    document.getElementById('preRecetasOverlay').classList.add('show');
+    await loadPreRecetas();
+    renderPreRecetasList();
+  }
+
+  function closePreRecetas() {
+    document.getElementById('preRecetasOverlay').classList.remove('show');
+  }
+
+  function isPreRecetaAdded(preId) {
+    return recipes.some((r) => r.sourceId === preId);
+  }
+
+  function togglePreReceta(preId) {
+    const pre = (preRecetas || []).find((p) => p.id === preId);
+    if (!pre) return;
+    const existing = recipes.find((r) => r.sourceId === preId);
+    if (existing) {
+      recipes = recipes.filter((r) => r.id !== existing.id);
+    } else {
+      recipes.push({
+        id: uid(),
+        name: pre.name,
+        ingredients: pre.ingredients.map((i) => ({ id: uid(), text: i.text, category: i.category })),
+        subRecipeIds: [],
+        sourceId: pre.id,
+        sourceUrl: pre.url,
+      });
+    }
+    saveRecipesData();
+    renderPreRecetasList();
+    if (document.getElementById('recetasOverlay').classList.contains('show')) renderRecetasList();
+    renderRecipePickerList();
+    renderMenu();
+  }
+
+  function renderPreRecetasList() {
+    const listEl = document.getElementById('preRecetasList');
+    const indexEl = document.getElementById('preRecetasAlphaIndex');
+    const q = normalize(preRecetasFilter);
+    let entries = preRecetas || [];
+    if (q) entries = entries.filter((p) => normalize(p.name).includes(q));
+    if (entries.length === 0) {
+      listEl.innerHTML = `<div class="recetas-empty">${q ? 'No encontramos ninguna receta con ese texto.' : 'No se pudo cargar el recetario.'}</div>`;
+      indexEl.innerHTML = '';
+      return;
+    }
+    const sorted = [...entries].sort((a, b) => normalize(a.name).localeCompare(normalize(b.name)));
+    const groups = new Map();
+    sorted.forEach((p) => {
+      const letter = (normalize(p.name).charAt(0) || '#').toUpperCase();
+      if (!groups.has(letter)) groups.set(letter, []);
+      groups.get(letter).push(p);
+    });
+    const letters = [...groups.keys()].sort();
+
+    listEl.innerHTML = letters.map((letter) => `
+      <div class="recipe-letter-heading" id="pre-recetas-letter-${letter}">${letter}</div>
+      ${groups.get(letter).map((p) => {
+        const added = isPreRecetaAdded(p.id);
+        return `<div class="recipe-row recipe-row-pre">
+          <div class="recipe-row-body">
+            <span class="recipe-row-name">${escapeHtml(p.name)}</span>
+            <span class="recipe-row-count">${p.ingredients.length} ingrediente${p.ingredients.length !== 1 ? 's' : ''}</span>
+          </div>
+          <button type="button" class="toggle-btn${added ? ' active' : ''}" data-action="toggle-pre-receta" data-pre-id="${p.id}">${added ? '✓ Agregada' : '+ Agregar'}</button>
+        </div>`;
+      }).join('')}
+    `).join('');
+
+    const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    const extraLetters = letters.filter((l) => !ALPHABET.includes(l));
+    indexEl.innerHTML = [...ALPHABET, ...extraLetters].map((letter) => {
+      const has = groups.has(letter);
+      return `<button type="button" class="alpha-index-letter${has ? '' : ' is-empty'}" data-action="jump-to-pre-letter" data-letter="${letter}"${has ? '' : ' disabled'}>${letter}</button>`;
     }).join('');
   }
 
@@ -3937,6 +4064,14 @@
   function renderRecipeDetail() {
     const recipe = recipes.find((r) => r.id === openRecipeDetailId);
     if (!recipe) return;
+    const sourceLinkEl = document.getElementById('recipeDetailSourceLink');
+    if (recipe.sourceUrl) {
+      sourceLinkEl.hidden = false;
+      sourceLinkEl.innerHTML = `<button type="button" class="toggle-btn" data-action="open-source-url" data-url="${escapeHtml(recipe.sourceUrl)}">🔗 Ver receta original</button>`;
+    } else {
+      sourceLinkEl.hidden = true;
+      sourceLinkEl.innerHTML = '';
+    }
     renderIngredientGrid();
     renderInstructionBlocksList();
     renderStepsSummary();
@@ -4219,6 +4354,13 @@
   document.getElementById('recetasBtn').addEventListener('click', openRecetas);
   document.getElementById('recetasBackBtn').addEventListener('click', closeRecetas);
 
+  document.getElementById('preRecetasBtn').addEventListener('click', openPreRecetas);
+  document.getElementById('preRecetasBackBtn').addEventListener('click', closePreRecetas);
+  document.getElementById('preRecetasSearchInput').addEventListener('input', (e) => {
+    preRecetasFilter = e.target.value;
+    renderPreRecetasList();
+  });
+
   document.getElementById('ingredientesBtn').addEventListener('click', openIngredientes);
   document.getElementById('recipeIngListBtn').addEventListener('click', openIngredientes);
   document.getElementById('ingredientesBackBtn').addEventListener('click', closeIngredientes);
@@ -4376,6 +4518,11 @@
       r.name = name;
       r.ingredients = newIngredients;
       r.subRecipeIds = newSubIds;
+      // Editar una pre-receta la "bifurca" a receta propia: la original
+      // sigue intacta en el catálogo estático (assets/pre-recetas.json),
+      // así que no se pierde nada, y esta copia deja de contarse como
+      // "agregada" en el picker de Pre-recetas.
+      r.sourceId = null;
     } else {
       recipeId = uid();
       recipes.push({ id: recipeId, name, ingredients: newIngredients, subRecipeIds: newSubIds });
@@ -4665,6 +4812,14 @@
     } else if (action === 'jump-to-ing-letter') {
       const el = document.getElementById(`ingredientes-letter-${target.dataset.letter}`);
       if (el) el.scrollIntoView({ block: 'start' });
+    } else if (action === 'toggle-pre-receta') {
+      togglePreReceta(target.dataset.preId);
+    } else if (action === 'jump-to-pre-letter') {
+      const el = document.getElementById(`pre-recetas-letter-${target.dataset.letter}`);
+      if (el) el.scrollIntoView({ block: 'start' });
+    } else if (action === 'open-source-url') {
+      e.stopPropagation();
+      window.open(target.dataset.url, '_blank', 'noopener');
     }
   }
 
@@ -4684,6 +4839,9 @@
   document.getElementById('recipeDetailIngredients').addEventListener('click', handleDelegatedClick);
   document.getElementById('instructionBlocksList').addEventListener('click', handleDelegatedClick);
   document.getElementById('stepActionsGrid').addEventListener('click', handleDelegatedClick);
+  document.getElementById('preRecetasList').addEventListener('click', handleDelegatedClick);
+  document.getElementById('preRecetasAlphaIndex').addEventListener('click', handleDelegatedClick);
+  document.getElementById('recipeDetailSourceLink').addEventListener('click', handleDelegatedClick);
 
   // Refuerzo táctil: algunos WebViews de Android disparan click con demora
   // o lo pierden en scroll rápido. touchend + click combinados sin duplicar.

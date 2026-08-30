@@ -288,6 +288,8 @@ window.Sync = (function () {
     const recipes = recetasRes.data.map((r) => ({
       id: r.id,
       name: r.nombre,
+      sourceId: r.source_id || undefined,
+      sourceUrl: r.source_url || undefined,
       ingredients: ingRes.data
         .filter((i) => i.receta_id === r.id)
         .map((i) => ({ id: i.id, text: i.text, category: i.category })),
@@ -381,6 +383,8 @@ window.Sync = (function () {
   function recipeSignature(r) {
     return JSON.stringify({
       name: r.name,
+      sourceId: r.sourceId || null,
+      sourceUrl: r.sourceUrl || null,
       ingredients: r.ingredients || [],
       subRecipeIds: r.subRecipeIds || [],
       instructionBlocks: r.instructionBlocks || [],
@@ -517,6 +521,8 @@ window.Sync = (function () {
       for (const r of changedRecipes) {
         const payload = {
           nombre: r.name,
+          sourceId: r.sourceId || null,
+          sourceUrl: r.sourceUrl || null,
           ingredientes: (r.ingredients || []).map((i) => ({ id: i.id, text: i.text, category: i.category })),
           subRecetaIds: r.subRecipeIds || [],
           pasos: (r.instructionBlocks || []).map((b) => ({

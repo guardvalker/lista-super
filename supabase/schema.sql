@@ -254,6 +254,8 @@ create policy "ls_paso_ingredientes_all" on ls_paso_ingredientes
 -- Payload esperado:
 -- {
 --   "nombre": "...",
+--   "sourceId": "..." | null, -- id de la pre-receta si viene sin editar (ver feature Pre-recetas)
+--   "sourceUrl": "..." | null, -- link a la receta original, se conserva aunque se edite
 --   "ingredientes": [{"id": uuid, "text": "...", "category": "..."}],
 --   "subRecetaIds": [uuid, ...],
 --   "pasos": [{
@@ -275,9 +277,13 @@ declare
   v_item jsonb;
   v_paso_id uuid;
 begin
-  insert into ls_recetas (id, lista_id, nombre, updated_at)
-  values (p_receta_id, p_lista_id, p_payload->>'nombre', now())
-  on conflict (id) do update set nombre = excluded.nombre, updated_at = now();
+  insert into ls_recetas (id, lista_id, nombre, source_id, source_url, updated_at)
+  values (p_receta_id, p_lista_id, p_payload->>'nombre', p_payload->>'sourceId', p_payload->>'sourceUrl', now())
+  on conflict (id) do update set
+    nombre = excluded.nombre,
+    source_id = excluded.source_id,
+    source_url = excluded.source_url,
+    updated_at = now();
 
   delete from ls_paso_ingredientes
     where paso_id in (select id from ls_receta_pasos where receta_id = p_receta_id);
