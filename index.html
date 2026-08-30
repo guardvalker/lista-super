@@ -1495,6 +1495,15 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="preRecetaAddOverlay">
+  <div class="modal">
+    <div class="modal-title">Agregar a Mis Recetas</div>
+    <div class="modal-subtitle">Podés cambiarle el nombre antes de agregarla</div>
+    <input type="text" id="preRecetaAddNameInput" class="modal-input" autocomplete="off" autocorrect="off">
+    <button class="modal-save-btn" id="preRecetaAddSaveBtn" type="button">Agregar</button>
+  </div>
+</div>
+
 <div class="screen-overlay" id="ingredientesOverlay">
   <div class="screen">
     <div class="screen-header">
@@ -1598,7 +1607,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.14.1';
+  const APP_VERSION = '2.14.2';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1779,6 +1788,11 @@
     ],
     '2.14.1': [
       'Arreglamos que el link "Ver receta original" de una pre-receta se perdiera al sincronizar (hacía falta actualizar también una función del lado de Supabase, además de la tabla).'
+    ],
+    '2.14.2': [
+      'El botón atrás de Android ahora cierra de a una la pantalla o ventana que tengas abierta (Recetas, Pre-recetas, detalle de receta, etc.) en vez de cerrar la app directamente — recién cierra la app cuando ya no queda nada abierto encima de la lista principal.',
+      'Al agregar una pre-receta ahora se puede editar el nombre antes de sumarla a Mis Recetas (los títulos originales de paulinacocina.net suelen ser largos).',
+      'Arreglamos el ícono de "atrás" de la pantalla Pre-recetas, que no se veía.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1811,6 +1825,7 @@
     document.getElementById('ingredientesBtn').innerHTML = ICONS.list;
     document.getElementById('recipeIngListBtn').innerHTML = ICONS.list;
     document.getElementById('ingredientesBackBtn').innerHTML = ICONS.back;
+    document.getElementById('preRecetasBackBtn').innerHTML = ICONS.back;
     document.getElementById('versionSettingsIcon').innerHTML = ICONS.note;
     document.getElementById('versionSettingsValue').textContent = APP_VERSION;
     document.getElementById('pullRefresh').innerHTML = ICONS.refresh;
@@ -3982,22 +3997,52 @@
     return recipes.some((r) => r.sourceId === preId);
   }
 
+  let pendingPreRecetaId = null; // pre-receta que se está por agregar, mientras el modal de nombre está abierto
+
   function togglePreReceta(preId) {
     const pre = (preRecetas || []).find((p) => p.id === preId);
     if (!pre) return;
     const existing = recipes.find((r) => r.sourceId === preId);
     if (existing) {
       recipes = recipes.filter((r) => r.id !== existing.id);
+      saveRecipesData();
+      renderPreRecetasList();
+      if (document.getElementById('recetasOverlay').classList.contains('show')) renderRecetasList();
+      renderRecipePickerList();
+      renderMenu();
     } else {
-      recipes.push({
-        id: uid(),
-        name: pre.name,
-        ingredients: pre.ingredients.map((i) => ({ id: uid(), text: i.text, category: i.category })),
-        subRecipeIds: [],
-        sourceId: pre.id,
-        sourceUrl: pre.url,
-      });
+      openPreRecetaAddModal(preId);
     }
+  }
+
+  function openPreRecetaAddModal(preId) {
+    const pre = (preRecetas || []).find((p) => p.id === preId);
+    if (!pre) return;
+    pendingPreRecetaId = preId;
+    document.getElementById('preRecetaAddNameInput').value = pre.name;
+    document.getElementById('preRecetaAddOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('preRecetaAddNameInput').focus(), 50);
+  }
+
+  function closePreRecetaAddModal() {
+    document.getElementById('preRecetaAddOverlay').classList.remove('show');
+    pendingPreRecetaId = null;
+  }
+
+  function confirmAddPreReceta() {
+    if (!pendingPreRecetaId) return;
+    const pre = (preRecetas || []).find((p) => p.id === pendingPreRecetaId);
+    if (!pre) return;
+    const name = document.getElementById('preRecetaAddNameInput').value.trim() || pre.name;
+    recipes.push({
+      id: uid(),
+      name,
+      ingredients: pre.ingredients.map((i) => ({ id: uid(), text: i.text, category: i.category })),
+      subRecipeIds: [],
+      sourceId: pre.id,
+      sourceUrl: pre.url,
+    });
+    closePreRecetaAddModal();
     saveRecipesData();
     renderPreRecetasList();
     if (document.getElementById('recetasOverlay').classList.contains('show')) renderRecetasList();
@@ -4362,6 +4407,13 @@
   document.getElementById('preRecetasSearchInput').addEventListener('input', (e) => {
     preRecetasFilter = e.target.value;
     renderPreRecetasList();
+  });
+  document.getElementById('preRecetaAddSaveBtn').addEventListener('click', confirmAddPreReceta);
+  document.getElementById('preRecetaAddNameInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmAddPreReceta();
+  });
+  document.getElementById('preRecetaAddOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'preRecetaAddOverlay') closePreRecetaAddModal();
   });
 
   document.getElementById('ingredientesBtn').addEventListener('click', openIngredientes);
@@ -4885,6 +4937,68 @@
     });
   }
 
+  // ---- Botón atrás de Android: cerrar la pantalla/modal de arriba en vez
+  // de salir de la app. Genérico vía MutationObserver sobre la clase
+  // "show" de cualquier .screen-overlay/.modal-overlay (son ~19 en la
+  // app), así no hace falta tocar cada open/close a mano ni mantenerlo
+  // sincronizado a futuro. Cada apertura empuja un estado al historial;
+  // cerrar desde la UI (botón atrás propio, tocar afuera, etc.) consume
+  // ese estado con history.back() para no dejarlo "colgado". Cuando no
+  // queda nada abierto, el back de hardware actúa normal (cierra la app o
+  // sale del navegador) — ahí es cuando "termina en la lista de
+  // ingredientes" como pidió el usuario.
+  function setupBackButtonNavigation() {
+    const OVERLAY_SELECTOR = '.screen-overlay, .modal-overlay';
+    let stack = [];
+    let programmaticBack = false; // true justo antes de un history.back() propio, para no reaccionar a su popstate
+    let fromHardwareBack = false; // true mientras procesamos un popstate real, para no volver a tocar el historial
+
+    function onOverlayOpened(el) {
+      if (stack.includes(el.id)) return;
+      stack.push(el.id);
+      if (!fromHardwareBack) history.pushState({ lsOverlay: el.id }, '');
+    }
+
+    function onOverlayClosed(el) {
+      const idx = stack.indexOf(el.id);
+      if (idx === -1) return;
+      stack.splice(idx, 1);
+      if (!fromHardwareBack) {
+        programmaticBack = true;
+        history.back();
+      }
+    }
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((m) => {
+        if (m.attributeName !== 'class') return;
+        const el = m.target;
+        if (!(el instanceof Element) || !el.matches(OVERLAY_SELECTOR)) return;
+        if (el.classList.contains('show')) onOverlayOpened(el);
+        else onOverlayClosed(el);
+      });
+      // MutationObserver es async (corre en un microtask): recién acá ya
+      // se procesó el cambio de clase que disparó el popstate, así que es
+      // seguro volver a permitir que un cierre desde la UI toque el
+      // historial. Resetearlo antes (ej. justo después del classList.remove
+      // de abajo) sería una carrera: este callback todavía no corrió.
+      fromHardwareBack = false;
+    });
+    document.querySelectorAll(OVERLAY_SELECTOR).forEach((el) => {
+      observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+    });
+
+    window.addEventListener('popstate', () => {
+      if (programmaticBack) { programmaticBack = false; return; }
+      if (stack.length === 0) return; // en la raíz: dejar que el back nativo actúe (cierra la app)
+      const topId = stack[stack.length - 1];
+      const el = document.getElementById(topId);
+      if (!el) { stack.pop(); return; }
+      fromHardwareBack = true;
+      el.classList.remove('show');
+    });
+  }
+
   // ---- Pull-to-refresh (arrastrar hacia abajo desde el tope para forzar
   // un re-sync) ----
   // No usamos el pull-to-refresh nativo del navegador (recarga toda la
@@ -4976,6 +5090,7 @@
   checkForUpdate();
   initSync();
   setupPullToRefresh();
+  setupBackButtonNavigation();
 })();
 
 // Registro del Service Worker (habilita funcionamiento offline)
