@@ -1116,7 +1116,10 @@
      distinto para no confundirla con una receta propia a simple vista */
   .recipe-row-pre { background: var(--accent-dim); border-color: transparent; }
 
-  /* fila de ingrediente dentro del catálogo (pantalla "Ingredientes") */
+  /* fila de ingrediente dentro del catálogo (pantalla "Ingredientes"): sin
+     el chip de categoría (achicaba el nombre al agregar el botón "+"), en
+     su lugar un borde de color a la izquierda con el color de la categoría. */
+  .ing-cat-row { border-left: 3px solid var(--cat-color, var(--border)); padding-left: 9px; }
   .ing-row-icon { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
   .ing-row-body {
     flex: 1;
@@ -1610,7 +1613,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.14.3';
+  const APP_VERSION = '2.14.4';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1800,6 +1803,10 @@
     '2.14.3': [
       'Nuevo botón "+" en cada ingrediente del catálogo ("Ver todos los ingredientes"): lo suma directo a la lista de compras sin tener que volver a escribirlo.',
       'El ícono de editar de esa misma pantalla ahora es un ícono generado en vez de un emoji, para que combine con el resto de la app.'
+    ],
+    '2.14.4': [
+      'En el catálogo de ingredientes sacamos la etiqueta de categoría (quedaba muy apretada al lado del botón "+" nuevo) y en su lugar cada fila tiene un borde de color a la izquierda con el color de su categoría.',
+      'Ya no se puede guardar un ingrediente en el catálogo que empiece con un número (ej. "1 cucharada de..."), y se limpiaron automáticamente los que ya se habían colado así.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1989,6 +1996,13 @@
       .trim();
   }
 
+  // Frena entradas tipo "1 cucharada de aceite de sesamo" (texto de un paso
+  // de receta, no un nombre de ingrediente) para que no ensucien el catalogo
+  // de sugerencias.
+  function startsWithNumber(text) {
+    return /^\d/.test((text || '').trim());
+  }
+
   function detectCategory(rawText) {
     const text = normalize(rawText);
     // 0. override desde el catálogo de ingredientes: gana siempre, incluso
@@ -2036,6 +2050,12 @@
     try {
       knownIngredients = JSON.parse(localStorage.getItem(KNOWN_INGREDIENTS_KEY) || '[]');
     } catch (e) { knownIngredients = []; }
+    // limpieza de entradas viejas tipo "1 cucharada de aceite de sesamo"
+    // (texto de ingrediente de receta con cantidad incluida, aprendido antes
+    // de que existiera este filtro — ver startsWithNumber).
+    const before = knownIngredients.length;
+    knownIngredients = knownIngredients.filter((i) => !startsWithNumber(i.text));
+    if (knownIngredients.length !== before) saveKnownIngredients();
   }
 
   function saveKnownIngredients() {
@@ -2045,7 +2065,7 @@
 
   function learnIngredient(text, category) {
     const trimmed = text.trim();
-    if (!trimmed || !category) return;
+    if (!trimmed || !category || startsWithNumber(trimmed)) return;
     const key = normalize(trimmed);
     if (!key || PRODUCT_MAP[key]) return; // ya está en el diccionario fijo
     if (knownIngredients.some((i) => i.key === key)) return; // ya aprendido
@@ -2062,7 +2082,7 @@
     const remoteById = new Map((remoteList || []).map((i) => [i.id, i]));
     const previousIds = new Set(previousSyncedIds || []);
     const unsyncedLocal = knownIngredients.filter((i) => !previousIds.has(i.id) && !remoteById.has(i.id));
-    knownIngredients = [...(remoteList || []), ...unsyncedLocal];
+    knownIngredients = [...(remoteList || []), ...unsyncedLocal].filter((i) => !startsWithNumber(i.text));
   }
 
   // Red de seguridad: aprende de lo que YA está en items/recipes pero
@@ -2074,7 +2094,7 @@
     let changed = false;
     const consider = (text, category) => {
       const trimmed = (text || '').trim();
-      if (!trimmed || !category) return;
+      if (!trimmed || !category || startsWithNumber(trimmed)) return;
       const key = normalize(trimmed);
       if (!key || PRODUCT_MAP[key]) return;
       if (knownIngredients.some((i) => i.key === key)) return;
@@ -2145,11 +2165,10 @@
       ${groups.get(letter).map((entry) => {
         const cat = catById[entry.catId] || catById['otros'];
         const label = entry.label.charAt(0).toUpperCase() + entry.label.slice(1);
-        return `<div class="recipe-row">
+        return `<div class="recipe-row ing-cat-row" style="--cat-color:${catColorVar(cat)}" title="${escapeHtml(cat.name)}">
           <span class="ing-row-icon">${cat.icon}</span>
           <div class="ing-row-body">
             <span class="ing-row-name">${escapeHtml(label)}</span>
-            <span class="suggestion-cat" style="--cat-color:${catColorVar(cat)}">${cat.name}</span>
           </div>
           ${entry.hidden
             ? `<span class="ing-row-locked" title="Oculto de las sugerencias">🙈</span>
@@ -2200,6 +2219,10 @@
     if (!editingKnownIngredientKey) return;
     const newText = document.getElementById('ingredientEditInput').value.trim();
     if (!newText) return;
+    if (startsWithNumber(newText)) {
+      alert('El nombre de un ingrediente no puede empezar con un número.');
+      return;
+    }
     const newKey = normalize(newText);
     // choca con otro override/aprendido ya existente (no con el diccionario:
     // pisar una palabra del diccionario es justamente lo que "editar" hace).
