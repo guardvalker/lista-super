@@ -495,6 +495,8 @@
   }
   .edit-btn svg { width: 15px; height: 15px; }
   .edit-btn:active { color: var(--accent); }
+  .add-ing-btn { color: var(--accent); }
+  .add-ing-btn:active { transform: scale(0.9); }
   .delete-btn {
     background: none;
     border: none;
@@ -1604,10 +1606,11 @@
     percent: `<svg ${ICON_SVG_ATTRS}><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>`,
     gear: `<svg ${ICON_SVG_ATTRS}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82A1.65 1.65 0 0 0 3 13.09H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
     refresh: `<svg ${ICON_SVG_ATTRS}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
+    plus: `<svg ${ICON_SVG_ATTRS}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.14.2';
+  const APP_VERSION = '2.14.3';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1793,6 +1796,10 @@
       'El botón atrás de Android ahora cierra de a una la pantalla o ventana que tengas abierta (Recetas, Pre-recetas, detalle de receta, etc.) en vez de cerrar la app directamente — recién cierra la app cuando ya no queda nada abierto encima de la lista principal.',
       'Al agregar una pre-receta ahora se puede editar el nombre antes de sumarla a Mis Recetas (los títulos originales de paulinacocina.net suelen ser largos).',
       'Arreglamos el ícono de "atrás" de la pantalla Pre-recetas, que no se veía.'
+    ],
+    '2.14.3': [
+      'Nuevo botón "+" en cada ingrediente del catálogo ("Ver todos los ingredientes"): lo suma directo a la lista de compras sin tener que volver a escribirlo.',
+      'El ícono de editar de esa misma pantalla ahora es un ícono generado en vez de un emoji, para que combine con el resto de la app.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2147,7 +2154,8 @@
           ${entry.hidden
             ? `<span class="ing-row-locked" title="Oculto de las sugerencias">🙈</span>
                <button class="edit-btn" type="button" data-action="restore-known-ingredient" data-ing-key="${escapeHtml(entry.key)}">↺</button>`
-            : `<button class="edit-btn" type="button" data-action="edit-known-ingredient" data-ing-key="${escapeHtml(entry.key)}">✏️</button>
+            : `<button class="edit-btn add-ing-btn" type="button" aria-label="Agregar a la lista" data-action="add-known-ingredient" data-ing-key="${escapeHtml(entry.key)}">${ICONS.plus}</button>
+               <button class="edit-btn" type="button" data-action="edit-known-ingredient" data-ing-key="${escapeHtml(entry.key)}">${ICONS.edit}</button>
                <button class="delete-btn" type="button" data-action="delete-known-ingredient" data-ing-key="${escapeHtml(entry.key)}">✕</button>`}
         </div>`;
       }).join('')}
@@ -2239,6 +2247,13 @@
     knownIngredients = knownIngredients.filter((i) => !(i.key === key && i.hidden));
     saveKnownIngredients();
     renderIngredientesList();
+  }
+
+  function addKnownIngredientToList(key) {
+    const entry = getIngredientCatalogEntries().find((e) => e.key === key && !e.hidden);
+    if (!entry) return;
+    const label = entry.label.charAt(0).toUpperCase() + entry.label.slice(1);
+    addItemWithCategory(label, entry.catId);
   }
 
   // ---- Menú semanal ----
@@ -4855,6 +4870,8 @@
         configuringBlockActions.push(actionId);
       }
       renderStepActionsGrid();
+    } else if (action === 'add-known-ingredient') {
+      addKnownIngredientToList(target.dataset.ingKey);
     } else if (action === 'edit-known-ingredient') {
       openIngredientEditModal(target.dataset.ingKey);
     } else if (action === 'delete-known-ingredient') {
