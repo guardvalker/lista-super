@@ -723,6 +723,29 @@
   .settings-row-icon svg { width: 20px; height: 20px; }
   .settings-row-label { flex: 1; }
   .settings-row-value { color: var(--text-dim); font-size: 13px; font-weight: 500; }
+  .settings-row-switch {
+    position: relative;
+    width: 42px;
+    height: 24px;
+    border-radius: 999px;
+    background: var(--border);
+    flex-shrink: 0;
+    transition: background-color 0.15s ease;
+  }
+  .settings-row-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--card);
+    box-shadow: var(--shadow);
+    transition: transform 0.15s ease;
+  }
+  .settings-row.active .settings-row-switch { background: var(--accent); }
+  .settings-row.active .settings-row-switch::after { transform: translateX(18px); }
 
   .header-actions { display: flex; gap: 8px; }
   .version-history-group { margin-bottom: 10px; }
@@ -1355,6 +1378,22 @@
       <span class="settings-row-label">Tema</span>
       <span class="settings-row-value" id="themeToggleValue"></span>
     </button>
+    <div class="modal-subtitle" style="margin-top:14px;margin-bottom:2px;">Secciones</div>
+    <button class="settings-row" id="featureRecetasToggle" type="button">
+      <span class="settings-row-icon" id="featureRecetasIcon"></span>
+      <span class="settings-row-label">Recetas</span>
+      <span class="settings-row-switch"></span>
+    </button>
+    <button class="settings-row" id="featureMenuToggle" type="button">
+      <span class="settings-row-icon" id="featureMenuIcon"></span>
+      <span class="settings-row-label">Menú semanal</span>
+      <span class="settings-row-switch"></span>
+    </button>
+    <button class="settings-row" id="featureOfertasToggle" type="button">
+      <span class="settings-row-icon" id="featureOfertasIcon"></span>
+      <span class="settings-row-label">Precio de referencia</span>
+      <span class="settings-row-switch"></span>
+    </button>
     <button class="settings-row" id="accountBtn" type="button" style="display:none;">
       <span class="settings-row-icon" id="accountBtnIcon"></span>
       <span class="settings-row-label">Cuenta y sincronización</span>
@@ -1613,7 +1652,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.14.4';
+  const APP_VERSION = '2.15.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1807,6 +1846,10 @@
     '2.14.4': [
       'En el catálogo de ingredientes sacamos la etiqueta de categoría (quedaba muy apretada al lado del botón "+" nuevo) y en su lugar cada fila tiene un borde de color a la izquierda con el color de su categoría.',
       'Ya no se puede guardar un ingrediente en el catálogo que empiece con un número (ej. "1 cucharada de..."), y se limpiaron automáticamente los que ya se habían colado así.'
+    ],
+    '2.15.0': [
+      'Nuevo en Ajustes: podés prender o apagar las secciones de Recetas, Menú semanal y Precio de referencia. Al apagar una, su botón desaparece de arriba de todo; al prenderla, vuelve a aparecer.',
+      'Para cuentas nuevas, esas tres secciones ahora arrancan apagadas (la app arranca simple, solo lista de compras) — si ya las venías usando, siguen prendidas como estaban.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -1843,12 +1886,82 @@
     document.getElementById('versionSettingsIcon').innerHTML = ICONS.note;
     document.getElementById('versionSettingsValue').textContent = APP_VERSION;
     document.getElementById('pullRefresh').innerHTML = ICONS.refresh;
+    document.getElementById('featureRecetasIcon').innerHTML = ICONS.cooking;
+    document.getElementById('featureMenuIcon').innerHTML = ICONS.calendar;
+    document.getElementById('featureOfertasIcon').innerHTML = ICONS.percent;
   }
 
   document.getElementById('themeToggle').addEventListener('click', () => {
     theme = theme === 'dark' ? 'light' : 'dark';
     localStorage.setItem(THEME_KEY, theme);
     applyTheme();
+  });
+
+  // Un usuario "nuevo" es uno que nunca abrió la app antes (no hay versión
+  // vista guardada) y todavía no tiene ningún item en la lista -- mismo
+  // criterio que ya usaba checkForUpdate() para no mostrarle el modal de
+  // novedades en el primer uso, reutilizado acá para decidir el valor por
+  // defecto de las secciones opcionales.
+  function isBrandNewUser() {
+    let seen = null;
+    try { seen = localStorage.getItem(SEEN_VERSION_KEY); } catch (e) {}
+    return seen === null && items.length === 0;
+  }
+
+  // ---- Secciones opcionales (Recetas / Menú semanal / Precio de referencia) ----
+  // Desactivadas por defecto para usuarios nuevos (la app arranca simple,
+  // solo lista de compras); si ya venías usándolas antes de que existiera
+  // este ajuste, quedan prendidas como estaban.
+  const FEATURE_RECETAS_KEY = 'lista_super_feature_recetas';
+  const FEATURE_MENU_KEY = 'lista_super_feature_menu';
+  const FEATURE_OFERTAS_KEY = 'lista_super_feature_ofertas';
+  let featureRecetas = true;
+  let featureMenu = true;
+  let featureOfertas = true;
+
+  // Si la clave todavía no existe, calcula el valor por defecto y lo
+  // persiste de una — así queda "fijado" la primera vez. Necesario porque
+  // isBrandNewUser() deja de dar true apenas checkForUpdate() guarda
+  // SEEN_VERSION_KEY (pasa en la misma carga inicial), así que no se puede
+  // recalcular el default en cada carga sin perder el criterio de "nuevo".
+  function readFeatureToggle(key, defaultValue) {
+    const raw = localStorage.getItem(key);
+    if (raw !== null) return raw === 'true';
+    localStorage.setItem(key, String(defaultValue));
+    return defaultValue;
+  }
+
+  function loadFeatureToggles() {
+    const defaultValue = !isBrandNewUser();
+    featureRecetas = readFeatureToggle(FEATURE_RECETAS_KEY, defaultValue);
+    featureMenu = readFeatureToggle(FEATURE_MENU_KEY, defaultValue);
+    featureOfertas = readFeatureToggle(FEATURE_OFERTAS_KEY, defaultValue);
+    applyFeatureToggles();
+  }
+
+  function applyFeatureToggles() {
+    document.getElementById('recetasBtn').style.display = featureRecetas ? '' : 'none';
+    document.getElementById('menuBtn').style.display = featureMenu ? '' : 'none';
+    document.getElementById('ofertasBtn').style.display = featureOfertas ? '' : 'none';
+    document.getElementById('featureRecetasToggle').classList.toggle('active', featureRecetas);
+    document.getElementById('featureMenuToggle').classList.toggle('active', featureMenu);
+    document.getElementById('featureOfertasToggle').classList.toggle('active', featureOfertas);
+  }
+
+  document.getElementById('featureRecetasToggle').addEventListener('click', () => {
+    featureRecetas = !featureRecetas;
+    localStorage.setItem(FEATURE_RECETAS_KEY, String(featureRecetas));
+    applyFeatureToggles();
+  });
+  document.getElementById('featureMenuToggle').addEventListener('click', () => {
+    featureMenu = !featureMenu;
+    localStorage.setItem(FEATURE_MENU_KEY, String(featureMenu));
+    applyFeatureToggles();
+  });
+  document.getElementById('featureOfertasToggle').addEventListener('click', () => {
+    featureOfertas = !featureOfertas;
+    localStorage.setItem(FEATURE_OFERTAS_KEY, String(featureOfertas));
+    applyFeatureToggles();
   });
 
   // ---- Categorías ----
@@ -2756,8 +2869,7 @@
     let seen = null;
     try { seen = localStorage.getItem(SEEN_VERSION_KEY); } catch (e) {}
     if (seen === APP_VERSION) return;
-    const isBrandNewUser = seen === null && items.length === 0;
-    if (!isBrandNewUser) {
+    if (!isBrandNewUser()) {
       const entries = CHANGELOG[APP_VERSION] || [];
       document.getElementById('whatsnewVersion').textContent = APP_VERSION;
       document.getElementById('whatsnewList').innerHTML = entries.map(text => `<li>${text}</li>`).join('');
@@ -5124,6 +5236,7 @@
   loadRecipes();
   loadKnownIngredients();
   backfillKnownIngredientsFromCurrentData();
+  loadFeatureToggles();
   render();
   actualizarPrecioPromedioBtn();
   if (mostrarPrecioPromedio) cargarPreciosTermino();
