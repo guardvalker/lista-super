@@ -700,6 +700,19 @@
     box-shadow: var(--shadow);
   }
   .modal-save-btn:active { transform: scale(0.98); }
+  .modal-delete-btn {
+    width: 100%;
+    margin-top: 10px;
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .modal-delete-btn:active { transform: scale(0.98); }
   .settings-row {
     display: flex;
     align-items: center;
@@ -1483,6 +1496,7 @@
     <button class="toggle-btn" id="addSubrecipeBtn" type="button">+ Agregar subreceta</button>
     <div id="subrecipeList" class="subrecipe-list"></div>
     <button class="modal-save-btn" id="recipeSaveBtn" type="button">Guardar receta</button>
+    <button class="modal-delete-btn" id="recipeDeleteBtn" type="button" style="display:none">Borrar receta</button>
   </div>
 </div>
 
@@ -1652,7 +1666,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.15.0';
+  const APP_VERSION = '2.15.1';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1850,6 +1864,9 @@
     '2.15.0': [
       'Nuevo en Ajustes: podés prender o apagar las secciones de Recetas, Menú semanal y Precio de referencia. Al apagar una, su botón desaparece de arriba de todo; al prenderla, vuelve a aparecer.',
       'Para cuentas nuevas, esas tres secciones ahora arrancan apagadas (la app arranca simple, solo lista de compras) — si ya las venías usando, siguen prendidas como estaban.'
+    ],
+    '2.15.1': [
+      'Ahora se puede borrar una receta desde su pantalla de edición: abrí la receta en Recetas, tocá editar y usá el botón "Borrar receta" al final. Aplica también a las pre-recetas ya agregadas.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -3901,8 +3918,8 @@
 
   function deleteRecipe(id) {
     const recipe = recipes.find((r) => r.id === id);
-    if (!recipe) return;
-    if (!confirm(`¿Borrar la receta "${recipe.name}"? Se va a quitar de todos los días donde esté agregada y de cualquier receta que la use como subreceta.`)) return;
+    if (!recipe) return false;
+    if (!confirm(`¿Borrar la receta "${recipe.name}"? Se va a quitar de todos los días donde esté agregada y de cualquier receta que la use como subreceta.`)) return false;
 
     const ancestors = findAncestorRecipes(id);
     const oldEffectiveByAncestor = new Map(ancestors.map((a) => [a.id, getEffectiveIngredients(a)]));
@@ -3933,6 +3950,7 @@
     renderMenu();
     if (openRecipeDetailId === id) closeRecipeDetail();
     if (document.getElementById('recetasOverlay').classList.contains('show')) renderRecetasList();
+    return true;
   }
 
   // ---- Exportar / importar recetas ----
@@ -4638,6 +4656,9 @@
       ? 'Nombre del menú (ej: Milanesas con puré)'
       : 'Nombre de la receta (ej: Milanesas con puré)';
     document.getElementById('recipeSaveBtn').textContent = isMenu ? 'Guardar menú' : 'Guardar receta';
+    const deleteBtn = document.getElementById('recipeDeleteBtn');
+    deleteBtn.textContent = isMenu ? 'Borrar menú' : 'Borrar receta';
+    deleteBtn.style.display = editingRecipeId ? '' : 'none'; // una receta nueva todavía no existe, no hay nada que borrar
     document.getElementById('subrecipesSubtitle').textContent = isMenu ? 'Submenús (opcional)' : 'Subrecetas (opcional)';
     document.getElementById('addSubrecipeBtn').textContent = isMenu ? '+ Agregar submenú' : '+ Agregar subreceta';
     document.getElementById('recipeIngInput').value = '';
@@ -4762,6 +4783,9 @@
   document.getElementById('recipesLibraryBtn').addEventListener('click', () => openRecipePicker(null));
   document.getElementById('newRecipeBtn').addEventListener('click', () => openRecipeEditor(null));
   document.getElementById('recipeSaveBtn').addEventListener('click', saveRecipe);
+  document.getElementById('recipeDeleteBtn').addEventListener('click', () => {
+    if (editingRecipeId && deleteRecipe(editingRecipeId)) closeRecipeEditor();
+  });
   document.getElementById('addSubrecipeBtn').addEventListener('click', openSubrecipePicker);
   document.getElementById('subrecipePickerOverlay').addEventListener('click', (e) => {
     if (e.target.id === 'subrecipePickerOverlay') closeSubrecipePicker();
