@@ -1410,6 +1410,7 @@
     <button class="settings-row" id="accountBtn" type="button" style="display:none;">
       <span class="settings-row-icon" id="accountBtnIcon"></span>
       <span class="settings-row-label">Cuenta y sincronización</span>
+      <span class="settings-row-value" id="accountBtnValue" style="max-width:45%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
     </button>
     <button class="settings-row" id="versionSettingsBtn" type="button">
       <span class="settings-row-icon" id="versionSettingsIcon"></span>
@@ -1666,7 +1667,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.15.2';
+  const APP_VERSION = '2.15.3';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1870,6 +1871,9 @@
     ],
     '2.15.2': [
       'Cada app de BONA ahora guarda su propia sesión (antes compartían una sola). Vas a tener que iniciar sesión una vez más; usá el mismo email de siempre y tus listas y datos están como los dejaste.'
+    ],
+    '2.15.3': [
+      'Ajustes ahora muestra con qué email tenés la sesión iniciada, en la fila "Cuenta y sincronización".'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -5100,9 +5104,12 @@
     if (!window.Sync || !window.Sync.isConfigured()) return;
     document.getElementById('accountBtn').style.display = '';
     window.Sync.init({
-      onAuthChange: () => {
+      onAuthChange: (user) => {
         document.getElementById('accountBtnIcon').innerHTML =
           window.Sync.getListaId() ? ICONS.cloudCheck : ICONS.cloud;
+        // Email de la sesión a la vista: evita entrar sin saberlo con la
+        // cuenta equivocada.
+        document.getElementById('accountBtnValue').textContent = user && user.email ? user.email : '';
       },
       onListaChange: () => {
         document.getElementById('accountBtnIcon').innerHTML =
