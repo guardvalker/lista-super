@@ -595,19 +595,20 @@ window.Sync = (function () {
   // columnas `uuid` de Postgres. Se regeneran acá, una sola vez, remapeando
   // todas las referencias cruzadas (subRecipeIds, ingredientId, recipeId) —
   // mismo criterio que ya usa importRecipesFromPayload() en index.html.
-  function normalizeIds(items, recipes, weeklyPlan) {
+  function normalizeIds(items, recipes, weeklyPlan, force = false) {
     const remap = new Map();
     const fresh = (oldId) => {
       if (!remap.has(oldId)) remap.set(oldId, crypto.randomUUID());
       return remap.get(oldId);
     };
 
-    items.forEach((it) => { if (!isValidUuid(it.id)) it.id = fresh(it.id); });
+    const needsFresh = (id) => force || !isValidUuid(id);
+    items.forEach((it) => { if (needsFresh(it.id)) it.id = fresh(it.id); });
 
     recipes.forEach((r) => {
-      if (!isValidUuid(r.id)) r.id = fresh(r.id);
-      (r.ingredients || []).forEach((ing) => { if (!isValidUuid(ing.id)) ing.id = fresh(ing.id); });
-      (r.instructionBlocks || []).forEach((b) => { if (!isValidUuid(b.id)) b.id = fresh(b.id); });
+      if (needsFresh(r.id)) r.id = fresh(r.id);
+      (r.ingredients || []).forEach((ing) => { if (needsFresh(ing.id)) ing.id = fresh(ing.id); });
+      (r.instructionBlocks || []).forEach((b) => { if (needsFresh(b.id)) b.id = fresh(b.id); });
     });
     recipes.forEach((r) => {
       r.subRecipeIds = (r.subRecipeIds || []).map((id) => remap.get(id) || id);
@@ -617,7 +618,7 @@ window.Sync = (function () {
     });
     Object.values(weeklyPlan || {}).forEach((entries) => {
       (entries || []).forEach((e) => {
-        if (!isValidUuid(e.id)) e.id = fresh(e.id);
+        if (needsFresh(e.id)) e.id = fresh(e.id);
         e.recipeId = remap.get(e.recipeId) || e.recipeId;
       });
     });
@@ -637,7 +638,12 @@ window.Sync = (function () {
   // saveWeeklyPlan()/saveKnownIngredients() después de esto para persistir
   // los ids corregidos.
   async function uploadLocalData(items, recipes, weeklyPlan, knownIngredients) {
-    normalizeIds(items, recipes, weeklyPlan);
+    // force=true: ids nuevos siempre. Los ids locales pueden existir ya como filas
+    // de OTRA lista (ej. subidos antes con otra cuenta en este dispositivo): el
+    // upsert caería en ON CONFLICT DO UPDATE sobre una fila ajena y RLS lo
+    // rechaza ("new row violates row-level security policy (USING expression)").
+    normalizeIds(items, recipes, weeklyPlan, true);
+    (knownIngredients || []).forEach((k) => { k.id = crypto.randomUUID(); });
     lastSyncedItems = [];
     lastSyncedRecipeSig = new Map();
     lastSyncedPlanFlat = new Map();
