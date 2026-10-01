@@ -652,7 +652,10 @@ window.Sync = (function () {
   function init(callbacks) {
     cb = callbacks || {};
     if (!isConfigured()) return;
-    sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+    // storageKey propio: sin esto todas las apps de guardvalker.github.io (mismo origen,
+    // mismo proyecto Supabase) compartían una sola sesión y una app podía abrirse
+    // logueada con el email de otra.
+    sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey, { auth: { storageKey: 'lista-super-auth', persistSession: true, autoRefreshToken: true } });
 
     const handleSession = (session) => {
       currentUser = session ? session.user : null;
