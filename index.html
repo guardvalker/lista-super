@@ -1667,7 +1667,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.15.6';
+  const APP_VERSION = '2.15.7';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1883,6 +1883,9 @@
     ],
     '2.15.6': [
       'Fix: si la app perdía la conexión un instante al abrirse (frecuente en iPhone), se desvinculaba de la lista y después no te dejaba volver a unirte ("ya sos miembro"). Ahora solo se desvincula si de verdad no sos miembro, y si ya eras miembro unirte simplemente te vuelve a conectar.'
+    ],
+    '2.15.7': [
+      'Fix del error "new row violates row-level security policy": al vincular una lista nueva, el catálogo de ingredientes aprendidos del dispositivo se subía con ids que ya existían en otra lista. Ahora se suben con ids nuevos y lo que ya está en la lista compartida no se duplica.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -2227,7 +2230,17 @@
   function mergeKnownIngredients(remoteList, previousSyncedIds) {
     const remoteById = new Map((remoteList || []).map((i) => [i.id, i]));
     const previousIds = new Set(previousSyncedIds || []);
-    const unsyncedLocal = knownIngredients.filter((i) => !previousIds.has(i.id) && !remoteById.has(i.id));
+    const remoteKeys = new Set((remoteList || []).map((i) => i.key));
+    // Primer pull contra esta lista (nada sincronizado todavía): los ids
+    // locales vienen de OTRA lista/cuenta (o de antes de vincular) y pueden
+    // existir ya como filas ajenas en Supabase — el upsert caería en
+    // ON CONFLICT DO UPDATE sobre una fila que RLS no deja tocar ("new row
+    // violates row-level security policy (USING expression)"). Ids nuevos, y
+    // lo que ya está en el remoto por key gana.
+    const freshLink = previousIds.size === 0;
+    const unsyncedLocal = knownIngredients
+      .filter((i) => !previousIds.has(i.id) && !remoteById.has(i.id) && !(freshLink && remoteKeys.has(i.key)))
+      .map((i) => (freshLink ? { ...i, id: uid() } : i));
     knownIngredients = [...(remoteList || []), ...unsyncedLocal].filter((i) => !startsWithNumber(i.text));
   }
 
