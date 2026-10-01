@@ -1667,7 +1667,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.15.5';
+  const APP_VERSION = '2.15.6';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1880,6 +1880,9 @@
     ],
     '2.15.5': [
       'Fix: al subir tus datos locales a una lista compartida podía aparecer "new row violates row-level security policy" (pasaba si esos items ya existían en otra lista de otra cuenta en el mismo dispositivo). Ahora se suben con ids nuevos.'
+    ],
+    '2.15.6': [
+      'Fix: si la app perdía la conexión un instante al abrirse (frecuente en iPhone), se desvinculaba de la lista y después no te dejaba volver a unirte ("ya sos miembro"). Ahora solo se desvincula si de verdad no sos miembro, y si ya eras miembro unirte simplemente te vuelve a conectar.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';

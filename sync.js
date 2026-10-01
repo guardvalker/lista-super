@@ -134,6 +134,15 @@ window.Sync = (function () {
   async function refreshListaInfo() {
     if (!sb || !listaId) return;
     const { data, error } = await sb.from('ls_listas').select('id, nombre').eq('id', listaId).single();
+    // Solo desvinculamos si Postgres realmente dice "no ves esta lista"
+    // (PGRST116 = 0 filas bajo RLS). Un error de red / timeout (frecuente en
+    // iOS al reabrir la PWA) NO significa que dejamos de ser miembros: antes
+    // igual borraba el id guardado y la app quedaba "sin lista" aunque la
+    // membresía seguía en Supabase (y unirse de nuevo daba "ya sos miembro").
+    if (error && error.code !== 'PGRST116') {
+      fail(error);
+      return;
+    }
     if (error) {
       // No pudimos leer la lista bajo RLS: esta cuenta no es (o dejó de
       // ser) miembro — ej. un id de lista guardado localmente de otra
@@ -210,8 +219,11 @@ window.Sync = (function () {
     const { error } = await sb
       .from('ls_miembros')
       .insert({ lista_id: id, usuario_id: currentUser.id, display_name: currentUser.email });
-    if (error) throw error;
-    await linkLista(id, { autoPull: false });
+    // 23505 = ya existe la fila (lista_id, usuario_id): esta cuenta ya es
+    // miembro de esa lista, solo faltaba vincularla en este dispositivo.
+    if (error && error.code !== '23505') throw error;
+    await linkLista(id, { autoPull: !!error });
+    if (!listaId) throw new Error('No se pudo abrir esa lista con esta cuenta');
     return id;
   }
 
