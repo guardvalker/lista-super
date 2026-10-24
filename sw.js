@@ -1,7 +1,7 @@
 // Service Worker - BonaSuper
 // Cachea los archivos de la app la primera vez para que funcione sin internet después.
 
-const CACHE_NAME = 'lista-super-v64';
+const CACHE_NAME = 'lista-super-v65';
 const FILES_TO_CACHE = [
   './',
   './index.html',
