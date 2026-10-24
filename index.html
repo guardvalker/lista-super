@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Lista del Super</title>
+<title>BonaSuper</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#1e1e2e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Lista Super">
+<meta name="apple-mobile-web-app-title" content="BonaSuper">
 <meta name="mobile-web-app-capable" content="yes">
 <script>
   // Aplicar el tema antes de pintar para evitar el flash de color equivocado.
@@ -1291,7 +1291,7 @@
 <div class="app">
   <header>
     <div class="header-top">
-      <h1 id="titleBtn">🛒 Lista del Super</h1>
+      <h1 id="titleBtn">🛒 BonaSuper</h1>
       <div class="header-actions">
         <button class="theme-toggle" id="recetasBtn" type="button" aria-label="Recetas"></button>
         <button class="theme-toggle" id="menuBtn" type="button" aria-label="Menú semanal"></button>
@@ -1667,7 +1667,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.15.7';
+  const APP_VERSION = '2.16.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1886,6 +1886,9 @@
     ],
     '2.15.7': [
       'Fix del error "new row violates row-level security policy": al vincular una lista nueva, el catálogo de ingredientes aprendidos del dispositivo se subía con ids que ya existían en otra lista. Ahora se suben con ids nuevos y lo que ya está en la lista compartida no se duplica.'
+    ],
+    '2.16.0': [
+      'La app pasa a llamarse BonaSuper (antes Lista del Super) y estrena ícono: un honguito empujando el carrito del súper. Si la tenés en el inicio del celular, el nombre y el ícono nuevos aparecen al volver a agregarla.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';

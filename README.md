@@ -1,4 +1,4 @@
-# Lista del Super
+# BonaSuper
 
 **App:** https://guardvalker.github.io/lista-super/
 

@@ -1,6 +1,6 @@
 {
-  "name": "Lista del Super",
-  "short_name": "Lista Super",
+  "name": "BonaSuper",
+  "short_name": "BonaSuper",
   "description": "Lista de compras para el supermercado, organizada por categorías",
   "start_url": "./index.html",
   "scope": "./",
