@@ -1524,7 +1524,10 @@
     <div class="screen-header">
       <button class="theme-toggle" id="recetasBackBtn" type="button" aria-label="Volver"></button>
       <div class="screen-title">Recetas</div>
-      <button class="toggle-btn" id="preRecetasBtn" type="button">📖 Pre-recetas</button>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="toggle-btn" id="newRecetaBtn" type="button">➕ Nueva</button>
+        <button class="toggle-btn" id="preRecetasBtn" type="button">📖 Pre-recetas</button>
+      </div>
     </div>
     <div class="picker-actions recetas-toolbar">
       <button class="toggle-btn" id="recetasExportBtn" type="button">⬆️ Exportar</button>
@@ -1667,7 +1670,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.16.3';
+  const APP_VERSION = '2.17.0';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1898,6 +1901,9 @@
     ],
     '2.16.3': [
       'Ajuste del ícono de BonaSuper: vuelve el degradado marcado de claro a oscuro, pero con colores más claros que antes.'
+    ],
+    '2.17.0': [
+      'Nuevo botón "➕ Nueva" en Recetas, al lado de Pre-recetas: creá una receta directamente, sin tener que armar primero un menú.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
@@ -4612,6 +4618,7 @@
   document.getElementById('recetasBackBtn').addEventListener('click', closeRecetas);
 
   document.getElementById('preRecetasBtn').addEventListener('click', openPreRecetas);
+  document.getElementById('newRecetaBtn').addEventListener('click', () => openRecipeEditor(null, 'receta'));
   document.getElementById('preRecetasBackBtn').addEventListener('click', closePreRecetas);
   document.getElementById('preRecetasSearchInput').addEventListener('input', (e) => {
     preRecetasFilter = e.target.value;
@@ -4767,6 +4774,7 @@
       return;
     }
     const wasNew = !editingRecipeId;
+    const editingContextWasMenu = editingRecipeContext === 'menu';
     // closeRecipeEditor() resetea editingRecipeIngredients/editingRecipeSubIds,
     // guardamos las referencias antes de llamarlo.
     const newIngredients = editingRecipeIngredients;
@@ -4796,7 +4804,7 @@
     }
     saveRecipesData();
     closeRecipeEditor();
-    if (wasNew && pickerDayKey) {
+    if (wasNew && pickerDayKey && editingContextWasMenu) {
       assignRecipeToDay(pickerDayKey, recipeId);
     } else {
       if (!wasNew) {
