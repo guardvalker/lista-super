@@ -1525,7 +1525,7 @@
       <button class="theme-toggle" id="recetasBackBtn" type="button" aria-label="Volver"></button>
       <div class="screen-title">Recetas</div>
       <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="toggle-btn" id="newRecetaBtn" type="button">➕ Nueva</button>
+        <button class="toggle-btn active" id="newRecetaBtn" type="button">➕ Nueva</button>
         <button class="toggle-btn" id="preRecetasBtn" type="button">📖 Pre-recetas</button>
       </div>
     </div>
@@ -1670,7 +1670,7 @@
   };
 
   // subir APP_VERSION y agregar una entrada acá en cada cambio que valga la pena avisar
-  const APP_VERSION = '2.17.0';
+  const APP_VERSION = '2.17.1';
   const CHANGELOG = {
     '1.1.0': [
       'Ahora te avisamos acá cuando la app tiene novedades, en vez de que te enteres por sorpresa.'
@@ -1904,6 +1904,9 @@
     ],
     '2.17.0': [
       'Nuevo botón "➕ Nueva" en Recetas, al lado de Pre-recetas: creá una receta directamente, sin tener que armar primero un menú.'
+    ],
+    '2.17.1': [
+      'El botón "➕ Nueva" de Recetas ahora tiene color (verde), se veía muy oscuro.'
     ]
   };
   const SEEN_VERSION_KEY = 'lista_super_seen_version';
